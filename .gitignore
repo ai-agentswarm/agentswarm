@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environments
+.env
+gen-lang-client-*.json
+.venv
+venv/
+env/
+
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/
+
+# IDEs
+.vscode/
+.idea/
+
+# Testing
+.pytest_cache/
+
+traces/
+.DS_Store

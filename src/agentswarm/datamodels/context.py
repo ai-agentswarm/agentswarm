@@ -5,6 +5,7 @@ from typing import List, Optional
 from .message import Message
 from ..llms import LLMUsage, LLM
 from .store import Store
+from ..utils.tracing import Tracing
 
 class Context():
     """
@@ -26,9 +27,24 @@ class Context():
     thoughts: list[str]
     # Total (current) usage of the context stack
     usage: list[LLMUsage]
+    # Default LLM to use for the current context
+    default_llm: Optional[LLM]
+    # Reference to the tracing system
+    tracing: Tracing
 
 
-    def __init__(self, trace_id: str, messages: List[Message], store: Store, thoughts: list[str], step_id: str = None, parent_step_id: str = None, default_llm: Optional[LLM] = None):
+    def __init__(
+        self,
+        trace_id: str,
+        messages: List[Message],
+        store: Store,
+        tracing: Tracing,
+        thoughts: list[str] = [],
+        step_id: str = None,
+        parent_step_id: str = None,
+        default_llm: Optional[LLM] = None,
+        usage: Optional[list[LLMUsage]] = None,
+    ):
         self.trace_id = trace_id
         self.step_id = step_id if step_id else str(uuid.uuid4())
         self.parent_step_id = parent_step_id
@@ -36,6 +52,8 @@ class Context():
         self.store = store
         self.thoughts = thoughts
         self.default_llm = default_llm
+        self.tracing = tracing
+        self.usage = usage if usage else []
 
     def copy_for_execution(self):
         """
@@ -51,7 +69,9 @@ class Context():
             store=self.store,
             thoughts=[],
             parent_step_id=self.step_id,
-            default_llm=self.default_llm
+            default_llm=self.default_llm,
+            tracing=self.tracing,
+            usage=self.usage
         )
         return new_context
 
@@ -70,9 +90,17 @@ class Context():
             thoughts=self.thoughts,
             step_id=step_id,
             parent_step_id=self.step_id,
-            default_llm=self.default_llm
+            default_llm=self.default_llm,
+            tracing=self.tracing,
+            usage=self.usage
         )
         return iter_context
+
+    def add_usage(self, usage: LLMUsage):
+        """
+        Add usage to the current context
+        """
+        self.usage.append(usage)
 
     def debug_print(self) -> str:
         str_len = 100

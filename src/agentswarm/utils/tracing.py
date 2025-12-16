@@ -3,20 +3,21 @@ from datetime import datetime
 import json
 import os
 from ..datamodels.context import Context
+from ..datamodels.store import Store
 
 trace_path = './traces'
 
-def _get_store_snapshot(store: dict) -> dict:
+def _get_store_snapshot(store: Store) -> dict:
     """
     Returns a snapshot of the store.
     If TRACE_STORE_FULL is 'true', returns the full store.
     Otherwise, returns a summary with value types and sizes.
     """
     if os.getenv("TRACE_STORE_FULL", "false").lower() == "true":
-        return store
+        return store.items()
     
     summary = {}
-    for key, value in store.items():
+    for key, value in store.items().items():
         val_str = str(value)
         size_str = f"{len(val_str) / 1024:.1f} KB" if len(val_str) > 1024 else f"{len(val_str)} B"
         summary[key] = f"<{type(value).__name__} | size: {size_str}> (set TRACE_STORE_FULL=true to see content)"

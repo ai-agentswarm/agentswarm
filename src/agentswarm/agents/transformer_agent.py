@@ -37,6 +37,7 @@ I can be used to apply complex llm-based task to the stored data, in order to op
         if llm is None:
             raise ValueError("Default LLM not set")
         response = await llm.generate(all)
+        context.add_usage(response.usage)
 
         new_key = f"transformer_{uuid.uuid4()}"
         context.store.set(new_key, response.text)

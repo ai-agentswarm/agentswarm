@@ -12,7 +12,6 @@ from .merge_agent import MergeAgent
 from .transformer_agent import TransformerAgent
 from .thinking_agent import ThinkingAgent
 from ..datamodels import Message, Context, KeyStoreResponse, ThoughtResponse, VoidResponse
-from ..utils.tracing import trace_agent, trace_loop_step, trace_agent_result, trace_agent_error
 
 InputType = TypeVar('InputType', bound=BaseModel)
 OutputType = TypeVar('OutputType', bound=BaseModel)
@@ -64,14 +63,14 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
             new_context = context.copy_for_execution()
             
             # Trace the agent execution
-            trace_agent(new_context, agent.id(), function.arguments)
+            context.tracing.trace_agent(new_context, agent.id(), function.arguments)
             
             try:
                 result = await agent.execute(user_id, new_context, validated_input)
-                trace_agent_result(new_context, agent.id(), result)
+                context.tracing.trace_agent_result(new_context, agent.id(), result)
                 return result
             except Exception as e:
-                trace_agent_error(new_context, agent.id(), e)
+                context.tracing.trace_agent_error(new_context, agent.id(), e)
                 raise e
         raise Exception(f"Invalid arguments for agent {function.name}")
 
@@ -110,7 +109,7 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
             # Trace the iteration start
             iter_context = context.copy_for_iteration(iteration_step_id, current_context)
 
-            trace_loop_step(iter_context, f"Iteration {iteration}")
+            context.tracing.trace_loop_step(iter_context, f"Iteration {iteration}")
 
             tmp_context = current_context
             if from_prev_iteration:
@@ -118,6 +117,7 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
 
 
             response = await self.get_llm(user_id).generate(tmp_context, functions=self.generate_function_calls(user_id))
+            iter_context.add_usage(response.usage)
             
             if response.function_calls is None or len(response.function_calls) == 0:
                 return [Message(type="assistant", content=response.text)]

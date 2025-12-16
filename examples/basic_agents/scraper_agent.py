@@ -29,5 +29,5 @@ class ScraperAgent(BaseAgent[ScraperAgentInput, KeyStoreResponse]):
             raise Exception(f'Unable to retrieve {url}: error {response.status_code}')
         text = response.text
         key = f"scraper_{uuid.uuid4()}"
-        context.set_store(key, text)
+        context.store.set(key, text)
         return KeyStoreResponse(key=key, description=f"Scraped information from URL {url}")

@@ -3,7 +3,7 @@ import os
 from typing import List
 import uuid
 from agentswarm.agents import ReActAgent, BaseAgent, MapReduceAgent
-from agentswarm.datamodels import Message, Context
+from agentswarm.datamodels import Message, Context, LocalStore
 from agentswarm.llms import LLM, GeminiLLM
 from agentswarm.utils.tracing import trace_agent, trace_agent_error, trace_agent_result
 from print_utils import Colors, get_user_input, print_message, print_separator
@@ -47,7 +47,7 @@ async def main():
     master_agent = MasterAgent()
 
     conversation = []
-    store = {}
+    store = LocalStore()
     thoughts = []
     trace_id = str(uuid.uuid4())
 
@@ -66,7 +66,7 @@ async def main():
     print(f"{Colors.BOLD}{Colors.GRAY}{'=' * 80}{Colors.END}\n")
 
     conversation.append(Message(type="user", content=prompt))
-    context = Context(trace_id=trace_id, messages=conversation, store=store, thoughts=thoughts)
+    context = Context(trace_id=trace_id, messages=conversation, store=store, thoughts=thoughts, default_llm=GeminiLLM(client=client))
     trace_agent(context, master_agent.id(), {"task": prompt})
 
     print(f"\n{Colors.GRAY}⏳ Processing...{Colors.END}")

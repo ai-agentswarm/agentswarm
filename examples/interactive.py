@@ -63,7 +63,7 @@ async def main():
             continue
         
         conversation.append(Message(type="user", content=user_input))
-        context = Context(trace_id=trace_id, messages=conversation, store=store, thoughts=thoughts)
+        context = Context(trace_id=trace_id, messages=conversation, store=store, thoughts=thoughts, default_llm=GeminiLLM(api_key=os.getenv("GEMINI_API_KEY")))
         
         trace_agent(context, master_agent.id(), {"task": user_input})
 

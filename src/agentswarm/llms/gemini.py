@@ -68,6 +68,7 @@ class GeminiLLM(LLM):
 
         usg = response.usage_metadata
         usage = LLMUsage(
+            model=self.model,
             prompt_token_count=usg.prompt_token_count if usg.prompt_token_count is not None else 0,
             thoughts_token_count=usg.thoughts_token_count if usg.thoughts_token_count is not None else 0,
             tool_use_prompt_token_count=usg.tool_use_prompt_token_count if usg.tool_use_prompt_token_count is not None else 0,

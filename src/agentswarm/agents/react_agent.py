@@ -61,13 +61,7 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
             validated_input = input_type(**function.arguments)
             
             # Create a new context for the agent to support tracing hierarchy
-            new_context = Context(
-                trace_id=context.trace_id,
-                messages=[],
-                store=context.store,
-                thoughts=[],
-                parent_step_id=context.step_id
-            )
+            new_context = context.copy_for_execution()
             
             # Trace the agent execution
             trace_agent(new_context, agent.id(), function.arguments)
@@ -114,14 +108,8 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
             iteration_step_id = f"{context.step_id}_iter_{iteration}"
             
             # Trace the iteration start
-            iter_context = Context(
-                trace_id=context.trace_id,
-                messages=current_context,
-                store=context.store,
-                thoughts=context.thoughts,
-                step_id=iteration_step_id,
-                parent_step_id=context.step_id
-            )
+            iter_context = context.copy_for_iteration(iteration_step_id, current_context)
+
             trace_loop_step(iter_context, f"Iteration {iteration}")
 
             tmp_context = current_context

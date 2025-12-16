@@ -28,16 +28,18 @@ I can be used to apply complex llm-based task to the stored data, in order to op
         """
 
     async def execute(self, user_id: str, context: Context, input: TransformerAgentInput) -> KeyStoreResponse:
-        value = context.get_store(input.key)
+        value = context.store.get(input.key)
         all = [Message(type="user", content=f"{value}")]
         
         all.append(Message(type="user", content=f"Filter the previous data using this command:\n{input.cmd}\n. The ouput should be a new data, not a prompt or a python code. If not specified, you can optimize the output for your internal use."))
     
-        llm = GeminiLLM(api_key=os.getenv("GEMINI_API_KEY"))
+        llm = context.default_llm
+        if llm is None:
+            raise ValueError("Default LLM not set")
         response = await llm.generate(all)
 
         new_key = f"transformer_{uuid.uuid4()}"
-        context.set_store(new_key, response.text)
+        context.store.set(new_key, response.text)
 
         return KeyStoreResponse(key=new_key, description=f"Transformed information from key {input.key} with command {input.cmd}")
 

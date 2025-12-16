@@ -17,9 +17,9 @@ Whenever possible, if you need to filter or process the data, use the "transform
         """
 
     async def execute(self, user_id: str, context: Context, input: GatheringAgentInput) -> str:
-        if not context.has_store(input.key):
+        if not context.store.has(input.key):
             raise Exception(f"Information from the store with key {input.key} not found")
-        value = context.get_store(input.key)
+        value = context.store.get(input.key)
         return value
 
     

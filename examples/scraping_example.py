@@ -5,7 +5,7 @@ import uuid
 from agentswarm.agents import ReActAgent, BaseAgent, MapReduceAgent
 from agentswarm.datamodels import Message, Context, LocalStore
 from agentswarm.llms import LLM, GeminiLLM
-from agentswarm.utils.tracing import trace_agent, trace_agent_error, trace_agent_result
+from agentswarm.utils.tracing import LocalTracing
 from print_utils import Colors, get_user_input, print_message, print_separator
 from google.genai import Client
 from basic_agents.scraper_agent import ScraperAgent
@@ -18,8 +18,8 @@ load_dotenv()
 client = Client(vertexai=True, project=os.getenv("VERTEX_PROJECT"), location=os.getenv("VERTEX_LOCATION"))
 
 class MasterAgent(ReActAgent):
-    def __init__(self, max_iterations: int = 100, max_concurrent_agents: int = 5):
-        super().__init__(max_iterations, max_concurrent_agents)
+    def __init__(self):
+        super().__init__(100, 5)
 
     def get_llm(self, user_id: str) -> LLM:
         return GeminiLLM(client=client)
@@ -48,7 +48,7 @@ async def main():
 
     conversation = []
     store = LocalStore()
-    thoughts = []
+    tracing = LocalTracing()
     trace_id = str(uuid.uuid4())
 
     print(f"{Colors.GREEN}Trace ID: {trace_id}{Colors.END}")
@@ -66,14 +66,20 @@ async def main():
     print(f"{Colors.BOLD}{Colors.GRAY}{'=' * 80}{Colors.END}\n")
 
     conversation.append(Message(type="user", content=prompt))
-    context = Context(trace_id=trace_id, messages=conversation, store=store, thoughts=thoughts, default_llm=GeminiLLM(client=client))
-    trace_agent(context, master_agent.id(), {"task": prompt})
+    context = Context(
+        trace_id=trace_id,
+        messages=conversation,
+        store=store,
+        tracing=tracing,
+        default_llm=GeminiLLM(client=client)
+    )
+    tracing.trace_agent(context, master_agent.id(), {"task": prompt})
 
     print(f"\n{Colors.GRAY}⏳ Processing...{Colors.END}")
 
     try:
         response = await master_agent.execute('user-id', context)
-        trace_agent_result(context, master_agent.id(), response)
+        tracing.trace_agent_result(context, master_agent.id(), response)
         conversation = conversation + response
         
         print_separator()
@@ -81,7 +87,7 @@ async def main():
             print_message(message)
 
     except Exception as e:
-        trace_agent_error(context, master_agent.id(), e)
+        tracing.trace_agent_error(context, master_agent.id(), e)
         print(f"{Colors.RED}❌ Error: {e}{Colors.END}")
         import traceback
         traceback.print_exc()

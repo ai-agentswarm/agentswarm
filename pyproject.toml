@@ -49,7 +49,7 @@ docs = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/ai-agentswarm/agentswarm
+"Homepage" = "https://github.com/ai-agentswarm/agentswarm"
 "Bug Tracker" = "https://github.com/ai-agentswarm/agentswarm/issues"
 "Documentation" = "https://github.com/ai-agentswarm/agentswarm#readme"
 

@@ -42,3 +42,7 @@ nav:
       - ReAct Agent: agents/react.md
       - MCP Support: agents/mcp.md
       - Other Agents: agents/others.md
+
+markdown_extensions:
+  - pymdownx.snippets:
+      base_path: ["."]

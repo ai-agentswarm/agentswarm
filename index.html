@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#welcome-to-agentswarm" class="md-skip">
+        <a href="#agentswarm" class="md-skip">
           Skip to content
         </a>
       
@@ -292,10 +292,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#key-features" class="md-nav__link">
+  <a href="#why-agentswarm" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Key Features
+        🚀 Why AgentSwarm?
       
     </span>
   </a>
@@ -303,13 +303,63 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#quickstart" class="md-nav__link">
+  <a href="#architecture" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Quickstart
+        🛠️ Architecture
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="🛠️ Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-agent-as-a-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Agent-as-a-Function
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-the-store-shared-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. The "Store" (Shared Memory)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-recursive-map-reduce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Recursive Map-Reduce
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-interoperability-hybrid-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Interoperability &amp; Hybrid Execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -693,10 +743,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#key-features" class="md-nav__link">
+  <a href="#why-agentswarm" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Key Features
+        🚀 Why AgentSwarm?
       
     </span>
   </a>
@@ -704,13 +754,63 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#quickstart" class="md-nav__link">
+  <a href="#architecture" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Quickstart
+        🛠️ Architecture
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="🛠️ Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-agent-as-a-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Agent-as-a-Function
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-the-store-shared-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. The "Store" (Shared Memory)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-recursive-map-reduce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Recursive Map-Reduce
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-interoperability-hybrid-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Interoperability &amp; Hybrid Execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -731,27 +831,38 @@
 
 
 
-<h1 id="welcome-to-agentswarm">Welcome to Agentswarm</h1>
-<p><strong>Agentswarm</strong> is a recursive, functional, and state-isolated Multi-Agent Framework.</p>
-<p>It is designed to build complex, scalable agentic systems by composing small, focused agents.</p>
-<h2 id="key-features">Key Features</h2>
+<h1 id="agentswarm">🐝 AgentSwarm</h1>
+<p><strong>A Recursive, Functional, and Type-Safe Framework for Autonomous AI Agents.</strong></p>
+<p><strong>AgentSwarm</strong> is a next-generation agentic orchestration framework designed to solve the critical issues of <strong>Context Pollution</strong> and <strong>Complex Orchestration</strong> in multi-agent systems.</p>
+<p>Unlike chat-based frameworks (like AutoGen) or static graph frameworks (like LangGraph), AgentSwarm treats agents as <strong>Strongly Typed Asynchronous Functions</strong> that operate in isolated environments ("Tabula Rasa"), natively supporting recursion and Map-Reduce patterns.</p>
+<h2 id="why-agentswarm">🚀 Why AgentSwarm?</h2>
+<p>Current architectures suffer from two main problems:
+1.  <strong>Context Pollution:</strong> Sub-agents inherit the parent's entire chat history, wasting tokens, increasing latency, and confusing the model.
+2.  <strong>Boilerplate Hell:</strong> Defining dynamic recursive graphs requires complex configuration and rigid state definitions.</p>
+<p><strong>AgentSwarm solves these problems:</strong></p>
 <ul>
-<li><strong>Recursion</strong>: Agents can be composed of other agents.</li>
-<li><strong>State Isolation</strong>: Each agent execution has its own isolated context.</li>
-<li><strong>MCP Support</strong>: Native integration with the Model Context Protocol (MCP) to connect to external tools.</li>
+<li><strong>🧠 Tabula Rasa Execution:</strong> Every invoked agent starts with a <em>clean</em> context. The sub-agent receives only the specific input required, executes the task, and returns the output. No noise, no context window overflow.</li>
+<li><strong>📦 Native Blackboard Pattern:</strong> Agents don't pass massive raw text strings back and forth. They use a shared <strong>Key-Value Store</strong> to manipulate, transform, and merge data, exchanging only references (Keys).</li>
+<li><strong>🛡️ Type-Safe by Design:</strong> Built on Pydantic and Python Generics. Agent inputs and outputs are validated at runtime, and JSON schemas for the LLM are generated automatically from type hints.</li>
+<li><strong>⚡ Implicit Parallelism:</strong> The <code>ReActAgent</code> engine automatically handles parallel tool execution (Map) and result aggregation (Reduce) without complex graph definitions.</li>
 </ul>
-<h2 id="quickstart">Quickstart</h2>
-<p>Install the library:</p>
-<pre><code class="language-bash">pip install agentswarm
-</code></pre>
-<p>Create a simple agent:</p>
-<pre><code class="language-python">from agentswarm.agents import ReActAgent
-
-class MyAgent(ReActAgent):
-    # ... implementation ...
-    pass
-</code></pre>
-<p>Explore the documentation sections to learn more about the core concepts, available agents, and how to extend the framework.</p>
+<h2 id="architecture">🛠️ Architecture</h2>
+<p>AgentSwarm is built on three fundamental concepts:</p>
+<h3 id="1-agent-as-a-function">1. Agent-as-a-Function</h3>
+<p>Every agent is a class inheriting from <code>BaseAgent[Input, Output]</code>. There are no "nodes" or "edges" to manually define. Orchestration emerges naturally from the functional calls between agents.
+Moreover, agents are <strong>strongly typed</strong> and <strong>asynchronous</strong> by design, making them easy to compose and debug. When errors occur, they are propagated as standard exceptions, that can be managed by agents at different levels.</p>
+<h3 id="2-the-store-shared-memory">2. The "Store" (Shared Memory)</h3>
+<p>Instead of overloading the chat context, agents use the <code>Store</code> to manage information. We provide a set of agents to ease the management of the store:
+* <strong>GatheringAgent:</strong> Retrieves data from the store for display or processing.
+* <strong>TransformerAgent:</strong> Transforms data in the store (e.g., summarize, filter) using natural language commands and returns a new Key, keeping the context light.
+* <strong>MergeAgent:</strong> Combines multiple data keys into a single entity.</p>
+<h3 id="3-recursive-map-reduce">3. Recursive Map-Reduce</h3>
+<p>The Map-Reduce pattern is a powerful way to decompose complex tasks into smaller, parallelizable subtasks. It is used since decades in parallel computing. With AgentSwarm, we borrow this pattern to ease the orchestration of complex tasks, preventing context pullution or exosting, prefering to use the store as a shared memory.
+A <code>MapReduceAgent</code> can decompose complex tasks, dynamically instantiate clones of itself or other agents, and execute work in parallel, avoiding deadlocks via instance isolation.</p>
+<h3 id="4-interoperability-hybrid-execution">4. Interoperability &amp; Hybrid Execution</h3>
+<p>AgentSwarm is designed to be an open ecosystem, not a walled garden.
+* <strong>Protocol Agnostic:</strong> It (will) supports the <strong>Model Context Protocol (MCP)</strong> and <strong>Agent-to-Agent (A2A)</strong> standards, allowing your agents to interact seamlessly with external tools and third-party agent networks. You can also easily wrap existing <strong>LangChain</strong> tools and run them within the Swarm.
+* <strong>Hybrid Runtime:</strong> Each agent can be executed locally, or remotly, exploiting <strong>AWS</strong> or <strong>Google Cloud</strong> services. Also the Store can be a remote key-value store, like Redis.</p>
 
 
 

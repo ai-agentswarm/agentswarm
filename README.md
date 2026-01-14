@@ -2,7 +2,7 @@
 
 **A Recursive, Functional, and Type-Safe Framework for Autonomous AI Agents.**
 
-![Logo](media/logo_bg.png)
+![Logo](docs/media/logo_bg.png)
 
 **AgentSwarm** is a next-generation agentic orchestration framework designed to solve the critical issues of **Context Pollution** and **Complex Orchestration** in multi-agent systems.
 

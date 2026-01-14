@@ -6,6 +6,8 @@ from .transformer_agent import TransformerAgent, TransformerAgentInput
 from .thinking_agent import ThinkingAgent, ThinkingInput
 from .base_agent import BaseAgent
 
+from .mcp_agent import MCPBaseAgent, MCPToolAgent
+
 __all__ = [
     "ReActAgent",
     "MapReduceAgent",
@@ -19,4 +21,6 @@ __all__ = [
     "ThinkingAgent",
     "ThinkingInput",
     "BaseAgent",
+    "MCPBaseAgent",
+    "MCPToolAgent",
 ]

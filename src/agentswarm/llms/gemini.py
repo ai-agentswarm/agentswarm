@@ -10,7 +10,7 @@ logging.getLogger('httpx').setLevel(logging.WARNING)
 
 class GeminiLLM(LLM):
 
-    def __init__(self, api_key: str = None, model: str = 'gemini-2.5-flash', client: Client = None):
+    def __init__(self, api_key: str = None, model: str = 'gemini-3-flash-preview', client: Client = None):
         if api_key is None and client is None:
             raise ValueError("api_key or client must be provided")
         self.client = client if client is not None else Client(api_key=api_key)

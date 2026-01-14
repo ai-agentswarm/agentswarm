@@ -814,14 +814,28 @@
 <h1 id="react-agent">ReAct Agent</h1>
 <p>The <code>ReActAgent</code> is the most powerful agent type in the framework, implementing the <strong>Reasoning and Acting</strong> loop.</p>
 <h2 id="how-it-works">How it Works</h2>
-<p>The ReAct agent operates in a loop:
-1.  <strong>Context Construction</strong>: It gathers the conversation history and a special System Prompt that defines its operational rules (parallel execution, thinking first, etc.).
-2.  <strong>Tool Discovery</strong>: It looks at the list of <code>available_agents</code> (tools) and converts them into function definitions for the LLM.
-3.  <strong>Generation</strong>: It sends the context to the LLM.
-4.  <strong>Execution</strong>:
-    *   If the LLM calls the <strong>Thinking Tool</strong> (parallel to others), the thought is recorded.
-    *   If the LLM calls other tools, they are executed <strong>in parallel</strong> (up to a concurrency limit).
-5.  <strong>Recursion</strong>: The results are added back to the context, and the loop repeats until the LLM produces a final answer or the max iterations are reached.</p>
+<p>The ReAct agent operates in a loop:</p>
+<ol>
+<li>
+<p><strong>Context Construction</strong>: It gathers the conversation history and a special System Prompt that defines its operational rules (parallel execution, thinking first, etc.).</p>
+</li>
+<li>
+<p><strong>Tool Discovery</strong>: It looks at the list of <code>available_agents</code> (tools) and converts them into function definitions for the LLM.</p>
+</li>
+<li>
+<p><strong>Generation</strong>: It sends the context to the LLM.</p>
+</li>
+<li>
+<p><strong>Execution</strong>:</p>
+<ul>
+<li>If the LLM calls the <strong>Thinking Tool</strong> (parallel to others), the thought is recorded.</li>
+<li>If the LLM calls other tools, they are executed <strong>in parallel</strong> (up to a concurrency limit).</li>
+</ul>
+</li>
+<li>
+<p><strong>Recursion</strong>: The results are added back to the context, and the loop repeats until the LLM produces a final answer or the max iterations are reached.</p>
+</li>
+</ol>
 <h2 id="implementation-details">Implementation Details</h2>
 <p>When you subclass <code>ReActAgent</code>, you typically only need to define:
 - <code>get_llm()</code>: Which LLM to use.

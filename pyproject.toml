@@ -24,7 +24,8 @@ classifiers = [
 ]
 dependencies = [
     "pydantic>=2.12.4",
-    "google-genai>=1.50.1"
+    "google-genai>=1.50.1",
+    "mcp"
     # Aggiungi qui altre dipendenze core (es. openai, redis)
 ]
 keywords = ["ai", "agents", "llm", "framework", "recursive", "react"]
@@ -40,6 +41,11 @@ dev = [
 examples = [
     "httpx",
     "python-dotenv"
+]
+docs = [
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings[python]"
 ]
 
 [project.urls]

@@ -1,0 +1,44 @@
+site_name: Agentswarm
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - content.code.select
+    - navigation.expand
+    - navigation.sections
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+             show_root_heading: true
+             show_source: true
+
+nav:
+  - Home: index.md
+  - Core:
+      - Context: core/context.md
+      - Store: core/store.md
+      - Tracing: core/tracing.md
+  - LLMs: llms/index.md
+  - Agents:
+      - Base Agent: agents/base.md
+      - ReAct Agent: agents/react.md
+      - MCP Support: agents/mcp.md
+      - Other Agents: agents/others.md

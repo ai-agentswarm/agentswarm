@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentswarm"
-version = "0.1.0"
+name = "ai-agentswarm"
+version = "0.1.1"
 description = "A recursive, functional, and state-isolated Multi-Agent Framework."
 readme = "README.md"
 authors = [
@@ -26,7 +26,6 @@ dependencies = [
     "pydantic>=2.12.4",
     "google-genai>=1.50.1",
     "mcp"
-    # Aggiungi qui altre dipendenze core (es. openai, redis)
 ]
 keywords = ["ai", "agents", "llm", "framework", "recursive", "react"]
 

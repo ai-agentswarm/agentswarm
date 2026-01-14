@@ -2,6 +2,8 @@
 
 **A Recursive, Functional, and Type-Safe Framework for Autonomous AI Agents.**
 
+![Logo](media/logo_bg.png){width=200}
+
 **AgentSwarm** is a next-generation agentic orchestration framework designed to solve the critical issues of **Context Pollution** and **Complex Orchestration** in multi-agent systems.
 
 Unlike chat-based frameworks (like AutoGen) or static graph frameworks (like LangGraph), AgentSwarm treats agents as **Strongly Typed Asynchronous Functions** that operate in isolated environments ("Tabula Rasa"), natively supporting recursion and Map-Reduce patterns.

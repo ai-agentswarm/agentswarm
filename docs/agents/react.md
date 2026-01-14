@@ -5,12 +5,17 @@ The `ReActAgent` is the most powerful agent type in the framework, implementing 
 ## How it Works
 
 The ReAct agent operates in a loop:
+
 1.  **Context Construction**: It gathers the conversation history and a special System Prompt that defines its operational rules (parallel execution, thinking first, etc.).
+
 2.  **Tool Discovery**: It looks at the list of `available_agents` (tools) and converts them into function definitions for the LLM.
+
 3.  **Generation**: It sends the context to the LLM.
+
 4.  **Execution**:
     *   If the LLM calls the **Thinking Tool** (parallel to others), the thought is recorded.
     *   If the LLM calls other tools, they are executed **in parallel** (up to a concurrency limit).
+
 5.  **Recursion**: The results are added back to the context, and the loop repeats until the LLM produces a final answer or the max iterations are reached.
 
 ## Implementation Details

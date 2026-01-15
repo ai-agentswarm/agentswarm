@@ -3,19 +3,19 @@ import os
 from typing import List
 import uuid
 from agentswarm.agents import ReActAgent, BaseAgent, MapReduceAgent
-from agentswarm.datamodels import Message, Context
+from agentswarm.datamodels import Message, Context, LocalStore
 from agentswarm.llms import LLM, GeminiLLM
 from agentswarm.utils.tracing import LocalTracing
 from print_utils import Colors, get_user_input, print_message, print_separator
 
-from basic_agents.scraper_agent import ScraperAgent
-
 import textwrap
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 print(os.getenv("GEMINI_API_KEY"))
+
 
 class MasterAgent(ReActAgent):
     def __init__(self):
@@ -52,32 +52,32 @@ async def main():
 
     while True:
         user_input = get_user_input()
-        
+
         if user_input.lower() == "exit":
             print(f"\n{Colors.BOLD}{Colors.MAGENTA}👋 Goodbye!{Colors.END}\n")
             break
-        
+
         if not user_input.strip():
             print(f"{Colors.YELLOW}⚠️ Insert a valid message{Colors.END}")
             continue
-        
+
         conversation.append(Message(type="user", content=user_input))
         context = Context(
             trace_id=trace_id,
             messages=conversation,
             store=LocalStore(),
-            default_llm=GeminiLLM(api_key=os.getenv("GEMINI_API_KEY"), tracing=tracing),
-            tracing=tracing
+            default_llm=GeminiLLM(api_key=os.getenv("GEMINI_API_KEY")),
+            tracing=tracing,
         )
-        
+
         tracing.trace_agent(context, master_agent.id(), {"task": user_input})
 
         print(f"\n{Colors.GRAY}⏳ Processing...{Colors.END}")
         try:
-            response = await master_agent.execute('user-id', context)
+            response = await master_agent.execute("user-id", context)
             tracing.trace_agent_result(context, master_agent.id(), response)
             conversation = conversation + response
-            
+
             print_separator()
             for message in response:
                 print_message(message)
@@ -86,8 +86,8 @@ async def main():
             tracing.trace_agent_error(context, master_agent.id(), e)
             print(f"{Colors.RED}❌ Error: {e}{Colors.END}")
             import traceback
-            traceback.print_exc()
 
+            traceback.print_exc()
 
 
 if __name__ == "__main__":

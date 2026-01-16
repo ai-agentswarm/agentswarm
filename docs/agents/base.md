@@ -5,9 +5,13 @@ The `BaseAgent` is the fundamental unit of work in Agentswarm.
 ## The Abstract Concept
 
 An Agent in Agentswarm is simply a class that:
+
 1.  **Accepts Input**: Defined by a Pydantic model (`InputType`).
+
 2.  **Performs Work**: The `execute` method, which can do anything—call an LLM, query a database, or run a calculation.
+
 3.  **Produces Output**: Defined by a Pydantic model (`OutputType`).
+
 4.  **Describes Itself**: Provides a name (`id`) and `description` so that *other* agents (specifically LLMs) know how to use it.
 
 ## Implementing a New Agent

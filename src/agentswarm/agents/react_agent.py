@@ -16,6 +16,7 @@ from ..datamodels import (
     KeyStoreResponse,
     ThoughtResponse,
     VoidResponse,
+    StrResponse,
 )
 
 InputType = TypeVar("InputType", bound=BaseModel)

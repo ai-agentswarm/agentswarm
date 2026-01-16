@@ -26,7 +26,7 @@ from agentswarm.datamodels import Context
 class MyInput(BaseModel):
     query: str
 
-class MyAgent(BaseAgent[MyInput, str]): 
+class MyAgent(BaseAgent[MyInput, StrResponse]): 
     # Specifying [InputType, OutputType] generics is CRITICAL 
     # for automatic schema generation.
 
@@ -36,9 +36,9 @@ class MyAgent(BaseAgent[MyInput, str]):
     def description(self, user_id: str) -> str:
         return "Helps the user with X"
 
-    async def execute(self, user_id: str, context: Context, input: MyInput = None) -> str:
+    async def execute(self, user_id: str, context: Context, input: MyInput = None) -> StrResponse:
         # Your logic here
-        return f"Processed {input.query}"
+        return StrResponse(value=f"Processed {input.query}")
 ```
 
 ## Standard Outputs
@@ -46,7 +46,11 @@ class MyAgent(BaseAgent[MyInput, str]):
 Agentswarm provides a set of predefined output models in `agentswarm.datamodels.responses`. Using these standard responses helps maintain consistency across your agents, especially when they are used as tools by a ReAct agent.
 
 - **`VoidResponse`**: Use when the agent performs an action but returns no data (e.g., "Email sent").
+
+- **`StrResponse`**: Use when the agent returns a simple string, that should be elaborated.
+
 - **`KeyStoreResponse`**: Use when the agent stores a large object in the Store and returns only the key and a description. This prevents context pollution.
+
 - **`ThoughtResponse`**: Used internally for reasoning steps.
 
 ### Example

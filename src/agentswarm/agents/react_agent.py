@@ -1,4 +1,3 @@
-
 from abc import abstractmethod
 import traceback
 import asyncio
@@ -11,10 +10,17 @@ from .gathering_agent import GatheringAgent
 from .merge_agent import MergeAgent
 from .transformer_agent import TransformerAgent
 from .thinking_agent import ThinkingAgent
-from ..datamodels import Message, Context, KeyStoreResponse, ThoughtResponse, VoidResponse
+from ..datamodels import (
+    Message,
+    Context,
+    KeyStoreResponse,
+    ThoughtResponse,
+    VoidResponse,
+)
 
-InputType = TypeVar('InputType', bound=BaseModel)
-OutputType = TypeVar('OutputType', bound=BaseModel)
+InputType = TypeVar("InputType", bound=BaseModel)
+OutputType = TypeVar("OutputType", bound=BaseModel)
+
 
 class ReActAgent(BaseAgent[InputType, OutputType]):
 
@@ -34,7 +40,12 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
         return ThinkingAgent()
 
     def get_default_agents(self) -> List[BaseAgent]:
-        return [self.get_thinking_agent(), GatheringAgent(), TransformerAgent(), MergeAgent()]
+        return [
+            self.get_thinking_agent(),
+            GatheringAgent(),
+            TransformerAgent(),
+            MergeAgent(),
+        ]
 
     @abstractmethod
     def available_agents(self, user_id: str) -> List[BaseAgent]:
@@ -44,27 +55,42 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
         functions = []
         for agent in self.available_agents(user_id):
             try:
-                functions.append(LLMFunction(name=agent.id(), description=agent.description(user_id), parameters=agent.input_parameters()))
+                functions.append(
+                    LLMFunction(
+                        name=agent.id(),
+                        description=agent.description(user_id),
+                        parameters=agent.input_parameters(),
+                    )
+                )
             except Exception as e:
                 print(f"Error generating function call for agent {agent.id()}: {e}")
                 print(traceback.format_exc())
         return functions
 
-    async def agent_execution(self, user_id: str, context: Context, function: LLMFunction):
-        agent = next((agent for agent in self.available_agents(user_id) if agent.id() == function.name), None)
+    async def agent_execution(
+        self, user_id: str, context: Context, function: LLMFunction
+    ):
+        agent = next(
+            (
+                agent
+                for agent in self.available_agents(user_id)
+                if agent.id() == function.name
+            ),
+            None,
+        )
         if agent is None:
             raise Exception(f"Agent {function.name} not found")
 
         input_type = agent._get_generic_type(0)
         if input_type and isinstance(function.arguments, dict):
             validated_input = input_type(**function.arguments)
-            
+
             # Create a new context for the agent to support tracing hierarchy
             new_context = context.copy_for_execution()
-            
+
             # Trace the agent execution
             context.tracing.trace_agent(new_context, agent.id(), function.arguments)
-            
+
             try:
                 result = await agent.execute(user_id, new_context, validated_input)
                 context.tracing.trace_agent_result(new_context, agent.id(), result)
@@ -74,10 +100,17 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
                 raise e
         raise Exception(f"Invalid arguments for agent {function.name}")
 
-    def generate_messages_context(self, user_id: str, context: Context, input: InputType = None) -> List[Message]:
+    def generate_messages_context(
+        self, user_id: str, context: Context, input: InputType = None
+    ) -> List[Message]:
         all: List[Message] = []
         all.append(Message(type="system", content=REACT_SYS_PROMPT))
-        all.append(Message(type="system", content=f"Use the tool '{self.get_thinking_agent().id()}' IN PARALLEL to the other tools to explain your plan."))
+        all.append(
+            Message(
+                type="system",
+                content=f"Use the tool '{self.get_thinking_agent().id()}' IN PARALLEL to the other tools to explain your plan.",
+            )
+        )
         all.append(Message(type="system", content=self.prompt(user_id)))
         all.extend(context.messages)
         return all
@@ -91,86 +124,113 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
         async def sem_task(task):
             async with semaphore:
                 return await task
-        
+
         return await asyncio.gather(*(sem_task(task) for task in tasks))
 
-    async def execute(self, user_id: str, context: Context, input: InputType = None) -> OutputType:
+    async def execute(
+        self, user_id: str, context: Context, input: InputType = None
+    ) -> OutputType:
 
         current_context = self.generate_messages_context(user_id, context, input)
         iteration = 0
         from_prev_iteration = False
 
         while iteration < self.max_iterations:
-            print(f"Iteration {iteration}")
-            
+
             # Create an iteration step ID
             iteration_step_id = f"{context.step_id}_iter_{iteration}"
-            
+
             # Trace the iteration start
-            iter_context = context.copy_for_iteration(iteration_step_id, current_context)
+            iter_context = context.copy_for_iteration(
+                iteration_step_id, current_context
+            )
 
             context.tracing.trace_loop_step(iter_context, f"Iteration {iteration}")
 
             tmp_context = current_context
             if from_prev_iteration:
-                tmp_context = tmp_context + [Message(type="user", content="Elaborate the results of the agents")]
+                tmp_context = tmp_context + [
+                    Message(type="user", content="Elaborate the results of the agents")
+                ]
 
-
-            response = await self.get_llm(user_id).generate(tmp_context, functions=self.generate_function_calls(user_id))
+            response = await self.get_llm(user_id).generate(
+                tmp_context, functions=self.generate_function_calls(user_id)
+            )
             iter_context.add_usage(response.usage)
-            
+
             if response.function_calls is None or len(response.function_calls) == 0:
                 return [Message(type="assistant", content=response.text)]
-            
+
             has_execution_tool = False
             output = []
 
             # Prepare tasks for parallel execution
             tasks = []
-            
+
             for function_call in response.function_calls:
                 if function_call.name != self.get_thinking_agent().id():
                     has_execution_tool = True
-                
+
                 # We wrap the execution in a task, capturing the necessary context
-                task = self.execute_and_handle_result(user_id, iter_context, function_call, context)
+                task = self.execute_and_handle_result(
+                    user_id, iter_context, function_call, context
+                )
                 tasks.append(task)
-            
+
             # Execute all tasks in parallel with concurrency limit
-            results = await self.gather_with_concurrency(self.max_concurrent_agents, *tasks)
-            
+            results = await self.gather_with_concurrency(
+                self.max_concurrent_agents, *tasks
+            )
+
             # Flatten results into output list
             for res in results:
                 if res:
                     output.append(res)
 
             if not has_execution_tool and len(response.text) > 0:
-                 output.append(Message(type="assistant", content=response.text))
-                 return output
-            
+                output.append(Message(type="assistant", content=response.text))
+                return output
+
             current_context = current_context + output
             iteration += 1
             from_prev_iteration = True
 
         raise Exception("Max iterations reached")
 
-    async def execute_and_handle_result(self, user_id: str, iter_context: Context, function_call: LLMFunction, context: Context):
+    async def execute_and_handle_result(
+        self,
+        user_id: str,
+        iter_context: Context,
+        function_call: LLMFunction,
+        context: Context,
+    ):
         try:
             result = await self.agent_execution(user_id, iter_context, function_call)
-            
+
             if isinstance(result, Message):
                 return result
             elif isinstance(result, ThoughtResponse):
                 context.thoughts.append(result.thought)
                 return Message(type="assistant", content=f"Thought: {result.thought}")
             elif isinstance(result, VoidResponse) or result is None:
-                return Message(type="user", content=f"Agent {function_call.name} executed successfully.")
+                return Message(
+                    type="user",
+                    content=f"Agent {function_call.name} executed successfully.",
+                )
             elif isinstance(result, KeyStoreResponse):
-                return Message(type="user", content=f"Agent {function_call.name} executed and stored {result.description} in the store with key {result.key}.")
+                return Message(
+                    type="user",
+                    content=f"Agent {function_call.name} executed and stored {result.description} in the store with key {result.key}.",
+                )
             else:
-                return Message(type="user", content=f"Result of agent {function_call.name} execution: {result}")
+                return Message(
+                    type="user",
+                    content=f"Result of agent {function_call.name} execution: {result}",
+                )
         except Exception as e:
-             return Message(type="user", content=f"Error executing agent {function_call.name}: {e}")
+            return Message(
+                type="user", content=f"Error executing agent {function_call.name}: {e}"
+            )
 
 
 REACT_SYS_PROMPT = """

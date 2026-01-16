@@ -1,13 +1,17 @@
+from __future__ import annotations
 from pydantic import BaseModel, ConfigDict
 import uuid
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from .message import Message
 from ..llms import LLMUsage, LLM
 from .store import Store
-from ..utils.tracing import Tracing
 
-class Context():
+if TYPE_CHECKING:
+    from ..utils.tracing import Tracing
+
+
+class Context:
     """
     The Context class contains all the information of the current context, with the messages, store, usage and so on.
     Moreover, the Context contains informations about the tracing and current execution step.
@@ -31,7 +35,6 @@ class Context():
     default_llm: Optional[LLM]
     # Reference to the tracing system
     tracing: Tracing
-
 
     def __init__(
         self,
@@ -71,7 +74,7 @@ class Context():
             parent_step_id=self.step_id,
             default_llm=self.default_llm,
             tracing=self.tracing,
-            usage=self.usage
+            usage=self.usage,
         )
         return new_context
 
@@ -92,7 +95,7 @@ class Context():
             parent_step_id=self.step_id,
             default_llm=self.default_llm,
             tracing=self.tracing,
-            usage=self.usage
+            usage=self.usage,
         )
         return iter_context
 
@@ -106,10 +109,10 @@ class Context():
         str_len = 100
         output = f"Messages ({len(self.messages)}):\n"
         for idx, message in enumerate(self.messages):
-            content = message.content.replace('\n', ' ')
+            content = message.content.replace("\n", " ")
             if len(content) > str_len:
-                content = content[:(str_len-3)] + "..."
-            len_content = str_len -len(f"[{idx}] {message.type.upper()} ")
+                content = content[: (str_len - 3)] + "..."
+            len_content = str_len - len(f"[{idx}] {message.type.upper()} ")
             output += f"[{idx}] {message.type.upper()} {'-'*len_content}\n"
             output += f"{content}\n"
             output += f"{'-'*str_len}\n"
@@ -118,9 +121,9 @@ class Context():
             output += f"\nStore ({len(self.store)}):\n"
             output += f"{'-'*str_len}\n"
             for key, value in self.store.items():
-                content = str(value).replace('\n', ' ')
+                content = str(value).replace("\n", " ")
                 if len(content) > str_len:
-                    content = content[:(str_len-3)] + "..."
+                    content = content[: (str_len - 3)] + "..."
                 output += f"{key}: {content}\n"
             output += f"{'-'*str_len}\n"
         else:

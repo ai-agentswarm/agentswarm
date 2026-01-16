@@ -222,6 +222,11 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
                     type="user",
                     content=f"Agent {function_call.name} executed and stored {result.description} in the store with key {result.key}.",
                 )
+            elif isinstance(result, StrResponse):
+                return Message(
+                    type="user",
+                    content=f"Agent {function_call.name} executed and returned {result.value}.",
+                )
             else:
                 return Message(
                     type="user",

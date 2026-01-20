@@ -25,10 +25,10 @@ class MyCustomLLM(LLM):
         self.client = ... # Initialize your client
         self.model = model_name
 
-    async def generate(self, messages: list[Message], functions: list[LLMFunction] = None) -> LLMOutput:
+    async def generate(self, messages: list[Message], functions: list[LLMFunction] = None, feedback: FeedbackSystem = None) -> LLMOutput:
         # 1. Convert Agentswarm Messages to provider format
         # 2. Convert LLMFunctions to provider tool schemas
-        # 3. Call the API
+        # 3. Call the API (optionally with streaming via feedback)
         # 4. Parse the response into LLMOutput (text + function_calls)
         pass
 ```

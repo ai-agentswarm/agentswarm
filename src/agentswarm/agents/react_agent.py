@@ -155,7 +155,9 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
                 ]
 
             response = await self.get_llm(user_id).generate(
-                tmp_context, functions=self.generate_function_calls(user_id)
+                tmp_context,
+                functions=self.generate_function_calls(user_id),
+                feedback=iter_context.feedback,
             )
             iter_context.add_usage(response.usage)
 

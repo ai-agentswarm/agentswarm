@@ -6,6 +6,7 @@ from typing import List, Optional, TYPE_CHECKING
 from .message import Message
 from ..llms import LLMUsage, LLM
 from .store import Store
+from .feedback import Feedback, FeedbackSystem
 
 if TYPE_CHECKING:
     from ..utils.tracing import Tracing
@@ -35,6 +36,8 @@ class Context:
     default_llm: Optional[LLM]
     # Reference to the tracing system
     tracing: Tracing
+    # Reference to the feedback system
+    feedback: Optional[FeedbackSystem]
 
     def __init__(
         self,
@@ -42,6 +45,7 @@ class Context:
         messages: List[Message],
         store: Store,
         tracing: Tracing,
+        feedback: Optional[FeedbackSystem] = None,
         thoughts: list[str] = [],
         step_id: str = None,
         parent_step_id: str = None,
@@ -56,6 +60,7 @@ class Context:
         self.thoughts = thoughts
         self.default_llm = default_llm
         self.tracing = tracing
+        self.feedback = feedback
         self.usage = usage if usage else []
 
     def copy_for_execution(self):
@@ -74,6 +79,7 @@ class Context:
             parent_step_id=self.step_id,
             default_llm=self.default_llm,
             tracing=self.tracing,
+            feedback=self.feedback,
             usage=self.usage,
         )
         return new_context
@@ -95,6 +101,7 @@ class Context:
             parent_step_id=self.step_id,
             default_llm=self.default_llm,
             tracing=self.tracing,
+            feedback=self.feedback,
             usage=self.usage,
         )
         return iter_context
@@ -104,6 +111,15 @@ class Context:
         Add usage to the current context
         """
         self.usage.append(usage)
+
+    def emit_feedback(self, payload: Any, source: Optional[str] = None):
+        """
+        Emit a feedback event.
+        If source is not specified, it could be inferred from the current context state if needed.
+        """
+        if self.feedback is None:
+            return
+        self.feedback.push(Feedback(source=source or "context", payload=payload))
 
     def debug_print(self) -> str:
         str_len = 100

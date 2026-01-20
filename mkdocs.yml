@@ -36,6 +36,7 @@ nav:
       - Context: core/context.md
       - Store: core/store.md
       - Tracing: core/tracing.md
+      - Feedback: core/feedback.md
   - LLMs: llms/index.md
   - Agents:
       - Base Agent: agents/base.md

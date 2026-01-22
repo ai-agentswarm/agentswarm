@@ -5,8 +5,10 @@ from pydantic import BaseModel, Field
 from .base_agent import BaseAgent
 from ..datamodels import Message, Context, KeyStoreResponse
 
+
 class MergeAgentInput(BaseModel):
     keys: List[str] = Field(description="The list of keys to merge")
+
 
 class MergeAgent(BaseAgent[MergeAgentInput, KeyStoreResponse]):
     def id(self) -> str:
@@ -15,11 +17,16 @@ class MergeAgent(BaseAgent[MergeAgentInput, KeyStoreResponse]):
     def description(self, user_id: str) -> str:
         return "I'm able to merge different informations into a single one."
 
-    async def execute(self, user_id: str, context: Context, input: MergeAgentInput) -> KeyStoreResponse:
+    async def execute(
+        self, user_id: str, context: Context, input: MergeAgentInput
+    ) -> KeyStoreResponse:
+        not_found_keys = [key for key in input.keys if not context.store.has(key)]
+        if not_found_keys:
+            raise Exception(f"Keys {not_found_keys} not found in the store")
         values = [context.store.get(key) for key in input.keys]
         value = "\n".join(values)
         key = f"merged_{uuid.uuid4()}"
         context.store.set(key, value)
-        return KeyStoreResponse(key=key, description=f"Merged information from keys {input.keys}")
-
-    
+        return KeyStoreResponse(
+            key=key, description=f"Merged information from keys {input.keys}"
+        )

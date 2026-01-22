@@ -34,6 +34,9 @@ I can be used to apply complex llm-based task to the stored data, in order to op
     async def execute(
         self, user_id: str, context: Context, input: TransformerAgentInput
     ) -> KeyStoreResponse:
+        if not context.store.has(input.key):
+            raise ValueError(f"Key {input.key} not found in store")
+
         value = context.store.get(input.key)
         all = [Message(type="user", content=f"{value}")]
 

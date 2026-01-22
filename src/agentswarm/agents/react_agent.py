@@ -17,6 +17,7 @@ from ..datamodels import (
     ThoughtResponse,
     VoidResponse,
     StrResponse,
+    CompletionResponse,
 )
 
 InputType = TypeVar("InputType", bound=BaseModel)
@@ -188,6 +189,8 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
             # Flatten results into output list
             for res in results:
                 if res:
+                    if res.type == "completion":
+                        return [res]
                     output.append(res)
 
             if not has_execution_tool and len(response.text) > 0:
@@ -206,7 +209,7 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
         iter_context: Context,
         function_call: LLMFunction,
         context: Context,
-    ):
+    ) -> Message:
         try:
             result = await self.agent_execution(user_id, iter_context, function_call)
 
@@ -230,6 +233,8 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
                     type="user",
                     content=f"Agent {function_call.name} executed and returned {result.value}.",
                 )
+            elif isinstance(result, CompletionResponse):
+                return Message(type="completion", content=result.value)
             else:
                 return Message(
                     type="user",

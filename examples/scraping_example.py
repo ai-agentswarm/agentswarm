@@ -11,11 +11,18 @@ from google.genai import Client
 from basic_agents.scraper_agent import ScraperAgent
 
 import textwrap
+import time
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
-client = Client(vertexai=True, project=os.getenv("VERTEX_PROJECT"), location=os.getenv("VERTEX_LOCATION"))
+client = Client(
+    vertexai=True,
+    project=os.getenv("VERTEX_PROJECT"),
+    location=os.getenv("VERTEX_LOCATION"),
+)
+
 
 class MasterAgent(ReActAgent):
     def __init__(self):
@@ -36,7 +43,9 @@ class MasterAgent(ReActAgent):
     def available_agents(self, user_id: str) -> List[BaseAgent]:
         additional_agents = [ScraperAgent()]
         all_agents_for_subtask = self.get_default_agents() + additional_agents
-        return all_agents_for_subtask + [MapReduceAgent(max_iterations=1000, agents=all_agents_for_subtask)]
+        return all_agents_for_subtask + [
+            MapReduceAgent(max_iterations=1000, agents=all_agents_for_subtask)
+        ]
 
 
 async def main():
@@ -53,12 +62,12 @@ async def main():
 
     print(f"{Colors.GREEN}Trace ID: {trace_id}{Colors.END}")
 
-    prompt = '''
+    prompt = """
     Visit the sitemap https://www.wired.com/sitemap.xml?year=2025&month=12&week=2 and extract the first 15 links that point to articles about artificial intelligence and AI.
     If you find less than 15 links, proceed only with those you have found. 
     For each of these articles, visit the link, generate a summary and finally create a well written report. 
     The report must include for each article: the title, the original link, a vote from 1 to 5 that how much an article seems interesting and impactful (try to be honest, you will save my time) and a brief summary of maximum 5 lines.
-    '''
+    """
 
     print(f"\n{Colors.BOLD}{Colors.GRAY}{'=' * 80}{Colors.END}")
     wrapped_prompt = textwrap.fill(prompt, width=80)
@@ -71,17 +80,19 @@ async def main():
         messages=conversation,
         store=store,
         tracing=tracing,
-        default_llm=GeminiLLM(client=client)
+        default_llm=GeminiLLM(client=client),
     )
     tracing.trace_agent(context, master_agent.id(), {"task": prompt})
 
     print(f"\n{Colors.GRAY}⏳ Processing...{Colors.END}")
 
+    start_time = time.time()
+
     try:
-        response = await master_agent.execute('user-id', context)
+        response = await master_agent.execute("user-id", context)
         tracing.trace_agent_result(context, master_agent.id(), response)
         conversation = conversation + response
-        
+
         print_separator()
         for message in response:
             print_message(message)
@@ -90,8 +101,13 @@ async def main():
         tracing.trace_agent_error(context, master_agent.id(), e)
         print(f"{Colors.RED}❌ Error: {e}{Colors.END}")
         import traceback
+
         traceback.print_exc()
 
+    end_time = time.time()
+    print(
+        f"\n{Colors.GREEN}✅ Processing completed in {end_time - start_time:.2f} seconds{Colors.END}"
+    )
 
 
 if __name__ == "__main__":

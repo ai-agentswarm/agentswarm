@@ -1,6 +1,12 @@
 from .context import Context
 from .message import Message
-from .responses import KeyStoreResponse, VoidResponse, ThoughtResponse, StrResponse
+from .responses import (
+    KeyStoreResponse,
+    VoidResponse,
+    ThoughtResponse,
+    StrResponse,
+    CompletionResponse,
+)
 from .store import Store
 from .local_store import LocalStore
 from .feedback import Feedback, FeedbackSystem

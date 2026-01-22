@@ -36,3 +36,13 @@ class ThoughtResponse(BaseModel):
     """
 
     thought: str = Field(description="The thought of the agent.")
+
+
+class CompletionResponse(BaseModel):
+    """
+    The response of an agent that returns a completion.
+    When returned by an agent used in a ReActAgent loop, will terminate the loop,
+    and return the value as the final result.
+    """
+
+    value: str = Field(description="The value of the response.")

@@ -53,6 +53,8 @@ Agentswarm provides a set of predefined output models in `agentswarm.datamodels.
 
 - **`ThoughtResponse`**: Used internally for reasoning steps.
 
+- **`CompletionResponse`**: Use when the agent returns a completion. This type can be used to complete the reasoing loop of the ReAct agent. For example, if an agent generate a custom output (for example, an image or a custom html), that do not need to be further processed, shall use this respose.
+
 ### Example
 
 ```python

@@ -37,6 +37,30 @@ class MyOrchestrator(ReActAgent):
         ]
 ```
 
+By default, the ReActAgent will use the `ThinkingAgent` as the thinking tool. Its implementation is streightforward, and is necessary to improve the performance of the reasoning loop.
+It is possible to override its implementation by subclassing it and providing a custom implementation of the `get_thinking_agent()` method.
+For example:
+
+```python
+class ResponsiveThinkingAgent(ThinkingAgent):
+    async def execute(
+        self, user_id: str, context: Context, input_args: ThinkingInput
+    ) -> ThoughtResponse:
+        context.emit_feedback(input_args.reasoning)
+        return await super().execute(user_id, context, input_args)
+```
+
+And then use it in your ReActAgent:
+
+```python
+class MyOrchestrator(ReActAgent):
+    def get_thinking_agent(self):
+        return ResponsiveThinkingAgent()
+```
+
+In this example, the `ResponsiveThinkingAgent` emits a feedback message to the user, showing the reasoning process in real-time.
+
+
 ## API Reference
 
 ::: agentswarm.agents.ReActAgent

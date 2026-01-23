@@ -32,16 +32,28 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
 
     @abstractmethod
     def get_llm(self, user_id: str) -> LLM:
+        """
+        Returns the LLM to be used by the agent.
+        """
         pass
 
     @abstractmethod
     def prompt(self, user_id: str) -> str:
+        """
+        Returns the prompt to be used by the agent.
+        """
         pass
 
     def get_thinking_agent(self):
+        """
+        Returns the thinking agent to be used by the agent.
+        """
         return ThinkingAgent()
 
     def get_default_agents(self) -> List[BaseAgent]:
+        """
+        Returns the default agents for implementing the ReActAgent loop.
+        """
         return [
             self.get_thinking_agent(),
             GatheringAgent(),
@@ -51,6 +63,9 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
 
     @abstractmethod
     def available_agents(self, user_id: str) -> List[BaseAgent]:
+        """
+        Returns the available agents to be used by the agent.
+        """
         pass
 
     def generate_function_calls(self, user_id: str) -> List[LLMFunction]:

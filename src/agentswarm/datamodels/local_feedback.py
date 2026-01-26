@@ -29,3 +29,18 @@ class LocalFeedbackSystem(FeedbackSystem):
         Adds a callback to the feedback subscriptions.
         """
         self._subscriptions.add(callback)
+
+    def to_dict(self) -> dict:
+        from ..utils.exceptions import RemoteExecutionNotSupportedError
+
+        raise RemoteExecutionNotSupportedError(
+            "LocalFeedbackSystem cannot be serialized for remote execution."
+        )
+
+    @classmethod
+    def recreate(cls, config: dict) -> "LocalFeedbackSystem":
+        from ..utils.exceptions import RemoteExecutionNotSupportedError
+
+        raise RemoteExecutionNotSupportedError(
+            "LocalFeedbackSystem cannot be recreated from remote configuration."
+        )

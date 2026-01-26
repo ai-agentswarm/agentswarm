@@ -112,6 +112,72 @@ class Context:
         """
         self.usage.append(usage)
 
+    def to_dict(self) -> dict:
+        """
+        Serializes the context to a dictionary.
+        """
+        from ..utils.serialization import serialize_component
+
+        return {
+            "trace_id": self.trace_id,
+            "step_id": self.step_id,
+            "parent_step_id": self.parent_step_id,
+            "messages": [m.model_dump(by_alias=True) for m in self.messages],
+            "store": serialize_component(self.store),
+            "thoughts": self.thoughts,
+            "usage": [u.model_dump() for u in self.usage],
+            "tracing": serialize_component(self.tracing),
+            "feedback": serialize_component(self.feedback),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict, default_llm: Optional[LLM] = None) -> "Context":
+        """
+        Deserializes the context from a dictionary.
+        """
+        from ..utils.serialization import deserialize_component
+        from ..utils.tracing import Tracing
+
+        messages = [Message.model_validate(m) for m in data.get("messages", [])]
+        usage = [LLMUsage.model_validate(u) for u in data.get("usage", [])]
+
+        store = deserialize_component(data.get("store"), Store)
+
+        tracing = deserialize_component(data.get("tracing"), Tracing)
+        feedback = deserialize_component(data.get("feedback"), FeedbackSystem)
+
+        return cls(
+            trace_id=data["trace_id"],
+            messages=messages,
+            store=store,
+            tracing=tracing,
+            feedback=feedback,
+            thoughts=data.get("thoughts", []),
+            step_id=data.get("step_id"),
+            parent_step_id=data.get("parent_step_id"),
+            usage=usage,
+            default_llm=default_llm,
+        )
+
+    def merge(self, remote_context: Context):
+        """
+        Merges the state from a remote context into this context.
+        Ensures that messages, thoughts, and usage are appended/updated without breaking references.
+        """
+        # 1. Merge messages: append only new ones
+        # A simple heuristic: if the first few messages match, append the rest.
+        # But since remote started with our messages, we can just look for the delta.
+        if len(remote_context.messages) > len(self.messages):
+            self.messages.extend(remote_context.messages[len(self.messages) :])
+
+        # 2. Merge thoughts: same logic
+        if len(remote_context.thoughts) > len(self.thoughts):
+            self.thoughts.extend(remote_context.thoughts[len(self.thoughts) :])
+
+        # 3. Merge usage: same logic
+        if len(remote_context.usage) > len(self.usage):
+            self.usage.extend(remote_context.usage[len(self.usage) :])
+
     def emit_feedback(self, payload: Any, source: Optional[str] = None):
         """
         Emit a feedback event.

@@ -1,9 +1,11 @@
 from .store import Store
 
+
 class LocalStore(Store):
     """
     The LocalStore class implements a simple key-value store in memory.
     """
+
     def __init__(self):
         self.store = {}
 
@@ -18,4 +20,18 @@ class LocalStore(Store):
 
     def items(self) -> dict[str, any]:
         return self.store
-        
+
+    def to_dict(self) -> dict:
+        from ..utils.exceptions import RemoteExecutionNotSupportedError
+
+        raise RemoteExecutionNotSupportedError(
+            "LocalStore cannot be serialized for remote execution."
+        )
+
+    @classmethod
+    def recreate(cls, config: dict) -> "LocalStore":
+        from ..utils.exceptions import RemoteExecutionNotSupportedError
+
+        raise RemoteExecutionNotSupportedError(
+            "LocalStore cannot be recreated from remote configuration."
+        )

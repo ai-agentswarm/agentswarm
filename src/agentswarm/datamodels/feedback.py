@@ -33,3 +33,19 @@ class FeedbackSystem(ABC):
         Subscribes to feedback events.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def to_dict(self) -> dict:
+        """
+        Returns the configuration needed to recreate the feedback system.
+        WARNING: Never share keys or other secret during this process.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def recreate(cls, config: dict) -> "FeedbackSystem":
+        """
+        Recreates a FeedbackSystem instance from a configuration dictionary.
+        """
+        raise NotImplementedError

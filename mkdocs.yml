@@ -37,13 +37,20 @@ nav:
       - Store: core/store.md
       - Tracing: core/tracing.md
       - Feedback: core/feedback.md
+      - Remote Protocol: core/remote_protocol.md
   - LLMs: llms/index.md
   - Agents:
       - Base Agent: agents/base.md
       - ReAct Agent: agents/react.md
       - MCP Support: agents/mcp.md
+      - Remote Agent: agents/remote.md
       - Other Agents: agents/others.md
 
 markdown_extensions:
   - pymdownx.snippets:
       base_path: ["."]
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format

@@ -5,7 +5,8 @@ from .merge_agent import MergeAgent, MergeAgentInput
 from .transformer_agent import TransformerAgent, TransformerAgentInput
 from .thinking_agent import ThinkingAgent, ThinkingInput
 from .base_agent import BaseAgent
-
+from .remote_agent import RemoteAgent, RemoteExecutionMode
+from .http_remote_agent import HttpRemoteAgent
 from .mcp_agent import MCPBaseAgent, MCPToolAgent
 
 __all__ = [
@@ -23,4 +24,7 @@ __all__ = [
     "BaseAgent",
     "MCPBaseAgent",
     "MCPToolAgent",
+    "RemoteAgent",
+    "HttpRemoteAgent",
+    "RemoteExecutionMode",
 ]

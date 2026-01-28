@@ -32,6 +32,7 @@ keywords = ["ai", "agents", "llm", "framework", "recursive", "react"]
 [project.optional-dependencies]
 dev = [
     "pytest",
+    "pytest-asyncio",
     "twine",       
     "build",       
     "black",

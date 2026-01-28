@@ -50,6 +50,10 @@ class RemoteAgent(BaseAgent[InputType, OutputType]):
         Delegates execution to the remote environment.
         """
         # 1. Serialize context and input
+        base_messages_count = len(context.messages)
+        base_thoughts_count = len(context.thoughts)
+        base_usage_count = len(context.usage)
+
         payload = {
             "user_id": user_id,
             "agent_id": self.get_remote_agent_id(),
@@ -60,14 +64,26 @@ class RemoteAgent(BaseAgent[InputType, OutputType]):
         # 2. Call remote
         if self.mode == RemoteExecutionMode.SYNC:
             result_data = await self._call_remote_sync(payload)
-            return self._process_remote_result(result_data, context)
+            return self._process_remote_result(
+                result_data,
+                context,
+                base_messages_count,
+                base_thoughts_count,
+                base_usage_count,
+            )
         else:
             handler = await self._call_remote_async_init(payload)
             # For now, we might want to poll automatically if the user just awaits execute()
             # or return the handler if we change the return type.
             # But BaseAgent.execute expects OutputType.
             # So sync execution (awaiting it) should probably block/poll.
-            return await self._poll_for_result(handler, context)
+            return await self._poll_for_result(
+                handler,
+                context,
+                base_messages_count,
+                base_thoughts_count,
+                base_usage_count,
+            )
 
     @abstractmethod
     async def _call_remote_sync(self, payload: dict) -> dict:
@@ -79,12 +95,22 @@ class RemoteAgent(BaseAgent[InputType, OutputType]):
 
     @abstractmethod
     async def _poll_for_result(
-        self, handler: RemoteExecutionHandler, context: Context
+        self,
+        handler: RemoteExecutionHandler,
+        context: Context,
+        base_messages_count: int,
+        base_thoughts_count: int,
+        base_usage_count: int,
     ) -> OutputType:
         pass
 
     def _process_remote_result(
-        self, result_data: dict, local_context: Context
+        self,
+        result_data: dict,
+        local_context: Context,
+        base_messages_count: int,
+        base_thoughts_count: int,
+        base_usage_count: int,
     ) -> OutputType:
         """
         Updates the local context with remote changes and returns the result.
@@ -93,11 +119,18 @@ class RemoteAgent(BaseAgent[InputType, OutputType]):
         remote_context_dict = result_data.get("updated_context")
         if remote_context_dict:
             remote_context = Context.from_dict(remote_context_dict)
-            local_context.merge(remote_context)
+            local_context.merge(
+                remote_context,
+                base_messages_count,
+                base_thoughts_count,
+                base_usage_count,
+            )
 
         # Parse result
         output_type = self._get_generic_type(1)
         if output_type and "result" in result_data:
-            return output_type.model_validate(result_data["result"])
+            if hasattr(output_type, "model_validate"):
+                return output_type.model_validate(result_data["result"])
+            return result_data["result"]
 
         return result_data.get("result")

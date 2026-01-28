@@ -57,11 +57,11 @@ class Context:
         self.parent_step_id = parent_step_id
         self.messages = messages
         self.store = store
-        self.thoughts = thoughts
+        self.thoughts = thoughts if thoughts is not None else []
         self.default_llm = default_llm
         self.tracing = tracing
         self.feedback = feedback
-        self.usage = usage if usage else []
+        self.usage = usage if usage is not None else []
 
     def copy_for_execution(self):
         """
@@ -159,24 +159,39 @@ class Context:
             default_llm=default_llm,
         )
 
-    def merge(self, remote_context: Context):
+    def merge(
+        self,
+        remote_context: Context,
+        base_messages_count: Optional[int] = None,
+        base_thoughts_count: Optional[int] = None,
+        base_usage_count: Optional[int] = None,
+    ):
         """
         Merges the state from a remote context into this context.
         Ensures that messages, thoughts, and usage are appended/updated without breaking references.
         """
         # 1. Merge messages: append only new ones
-        # A simple heuristic: if the first few messages match, append the rest.
-        # But since remote started with our messages, we can just look for the delta.
-        if len(remote_context.messages) > len(self.messages):
-            self.messages.extend(remote_context.messages[len(self.messages) :])
+        bm = (
+            base_messages_count
+            if base_messages_count is not None
+            else len(self.messages)
+        )
+        if len(remote_context.messages) > bm:
+            self.messages.extend(remote_context.messages[bm:])
 
         # 2. Merge thoughts: same logic
-        if len(remote_context.thoughts) > len(self.thoughts):
-            self.thoughts.extend(remote_context.thoughts[len(self.thoughts) :])
+        bt = (
+            base_thoughts_count
+            if base_thoughts_count is not None
+            else len(self.thoughts)
+        )
+        if len(remote_context.thoughts) > bt:
+            self.thoughts.extend(remote_context.thoughts[bt:])
 
         # 3. Merge usage: same logic
-        if len(remote_context.usage) > len(self.usage):
-            self.usage.extend(remote_context.usage[len(self.usage) :])
+        bu = base_usage_count if base_usage_count is not None else len(self.usage)
+        if len(remote_context.usage) > bu:
+            self.usage.extend(remote_context.usage[bu:])
 
     def emit_feedback(self, payload: Any, source: Optional[str] = None):
         """

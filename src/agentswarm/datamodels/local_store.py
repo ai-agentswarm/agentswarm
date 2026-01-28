@@ -10,7 +10,7 @@ class LocalStore(Store):
         self.store = {}
 
     def get(self, key: str) -> any:
-        return self.store.get(key)
+        return self.store[key]
 
     def set(self, key: str, value: any):
         self.store[key] = value
@@ -19,7 +19,10 @@ class LocalStore(Store):
         return key in self.store
 
     def items(self) -> dict[str, any]:
-        return self.store
+        return self.store.copy()
+
+    def __len__(self) -> int:
+        return len(self.store)
 
     def to_dict(self) -> dict:
         from ..utils.exceptions import RemoteExecutionNotSupportedError

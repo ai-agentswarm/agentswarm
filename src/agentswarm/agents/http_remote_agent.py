@@ -49,7 +49,12 @@ class HttpRemoteAgent(RemoteAgent[InputType, OutputType]):
             )
 
     async def _poll_for_result(
-        self, handler: RemoteExecutionHandler, context: Context
+        self,
+        handler: RemoteExecutionHandler,
+        context: Context,
+        base_messages_count: int,
+        base_thoughts_count: int,
+        base_usage_count: int,
     ) -> OutputType:
         interval = 1.0
         max_retries = 60  # 1 minute
@@ -63,7 +68,13 @@ class HttpRemoteAgent(RemoteAgent[InputType, OutputType]):
                 data = response.json()
 
                 if data["status"] == "completed":
-                    return self._process_remote_result(data, context)
+                    return self._process_remote_result(
+                        data,
+                        context,
+                        base_messages_count,
+                        base_thoughts_count,
+                        base_usage_count,
+                    )
                 elif data["status"] == "failed":
                     raise RuntimeError(f"Remote execution failed: {data.get('error')}")
 

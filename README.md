@@ -2,7 +2,7 @@
 
 **A Recursive, Functional, and Type-Safe Framework for Autonomous AI Agents.**
 
-[![Sponsored by AppFactory](https://img.shields.io/badge/Sponsored%20by-AppFactory-orange)](https://appfactory.it)
+[![Sponsored by Appfactory](https://img.shields.io/badge/Sponsored%20by-Appfactory-orange)](https://appfactory.it)
 
 ![Logo](docs/media/logo_bg.png)
 
@@ -124,9 +124,9 @@ AgentSwarm is an open-source project maintained with ❤️. If you or your comp
 
 ### 🏆 Primary Sponsor
 
-[<img src="https://appfactory.it/assets/img/af/logo.svg" width="250" alt="AppFactory Logo">](https://appfactory.it)
+[<img src="https://appfactory.it/assets/img/af/logo.svg" width="250" alt="Appfactory Logo">](https://appfactory.it)
 
-**[AppFactory](https://appfactory.it)** is the primary sponsor of AgentSwarm. We specialize in building production-ready AI agent architectures and advanced automation systems.
+**[Appfactory](https://appfactory.it)** is the primary sponsor of AgentSwarm. We specialize in building production-ready AI agent architectures and advanced automation systems.
 
 ---
 

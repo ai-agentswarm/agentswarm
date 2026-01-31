@@ -42,3 +42,9 @@ Agentswarm currently includes support for Gemini.
 The `GeminiLLM` implementation connects to Google's Vertex AI or Generative AI SDKs.
 
 ::: agentswarm.llms.GeminiLLM
+
+### Reliable LLM (Wrapper)
+
+The `ReliableLLM` is a wrapper that adds retry and timeout logic to any other LLM.
+
+[Learn more about Reliable LLM](./reliable_llm.md)

@@ -1,5 +1,7 @@
-from .llm import LLM, LLMFunction, LLMUsage, LLMFunctionExecution, LLMOutput
+from .llm import LLM, LLMFunction, LLMFunctionExecution, LLMOutput
 from .gemini import GeminiLLM
+from .reliable_llm import ReliableLLM
+from .usage import LLMUsage
 
 __all__ = [
     "LLM",
@@ -8,4 +10,5 @@ __all__ = [
     "LLMFunctionExecution",
     "LLMOutput",
     "GeminiLLM",
+    "ReliableLLM",
 ]

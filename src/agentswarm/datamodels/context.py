@@ -4,12 +4,13 @@ import uuid
 from typing import List, Optional, TYPE_CHECKING
 
 from .message import Message
-from ..llms import LLMUsage, LLM
+from ..llms.usage import LLMUsage
 from .store import Store
 from .feedback import Feedback, FeedbackSystem
 
 if TYPE_CHECKING:
     from ..utils.tracing import Tracing
+    from ..llms.llm import LLM
 
 
 class Context:

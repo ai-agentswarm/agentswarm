@@ -58,7 +58,11 @@ class RemoteAgent(BaseAgent[InputType, OutputType]):
             "user_id": user_id,
             "agent_id": self.get_remote_agent_id(),
             "context": context.to_dict(),
-            "input": input.model_dump() if input else None,
+            "input": (
+                (input.model_dump() if hasattr(input, "model_dump") else input)
+                if input is not None
+                else None
+            ),
         }
 
         # 2. Call remote

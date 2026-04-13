@@ -33,5 +33,6 @@ class LLM:
         messages: List[Message],
         functions: List[LLMFunction] = None,
         feedback: Optional[FeedbackSystem] = None,
+        temperature: float = 0.0,
     ) -> LLMOutput:
         pass

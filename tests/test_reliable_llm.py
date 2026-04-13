@@ -76,13 +76,15 @@ async def test_timeout():
 async def test_timeout_retry():
     # 1st attempt timeouts, 2nd attempt succeeds
     class TimeoutOnceMock(MockLLM):
-        async def generate(self, messages, functions=None, feedback=None):
+        async def generate(
+            self, messages, functions=None, feedback=None, temperature=0.0
+        ):
             if self.call_count == 0:
                 # We still need to increment call_count if we don't call super
                 self.call_count += 1
                 await asyncio.sleep(1)
                 return None
-            return await super().generate(messages, functions, feedback)
+            return await super().generate(messages, functions, feedback, temperature)
 
     mock = TimeoutOnceMock()
     reliable = ReliableLLM(mock, timeout=0.5, max_retries=1, retry_delay=0.1)

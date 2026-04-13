@@ -42,6 +42,7 @@ class ReliableLLM(LLM):
         messages: List[Message],
         functions: List[LLMFunction] = None,
         feedback: Optional[FeedbackSystem] = None,
+        temperature: float = 0.0,
     ) -> LLMOutput:
         """
         Generate a response from the wrapped LLM with timeout and retry mechanisms.
@@ -53,7 +54,7 @@ class ReliableLLM(LLM):
             try:
                 # Use asyncio.wait_for to implement timeout
                 return await asyncio.wait_for(
-                    self.llm.generate(messages, functions, feedback),
+                    self.llm.generate(messages, functions, feedback, temperature),
                     timeout=self.timeout,
                 )
             except asyncio.TimeoutError:

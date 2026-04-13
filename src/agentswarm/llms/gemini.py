@@ -28,6 +28,7 @@ class GeminiLLM(LLM):
         messages: List[Message],
         functions: List[LLMFunction] = None,
         feedback: Optional[FeedbackSystem] = None,
+        temperature: float = 0.0,
     ) -> LLMOutput:
         contents = []
         sys_instruct = []
@@ -57,7 +58,7 @@ class GeminiLLM(LLM):
             tools = None
 
         config = types.GenerateContentConfig(
-            temperature=0,
+            temperature=temperature,
             tools=tools,
             system_instruction=sys_instruct,
             safety_settings=[

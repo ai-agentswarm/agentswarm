@@ -68,6 +68,21 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
         """
         pass
 
+    async def on_agent_result(
+        self, user_id: str, context: Context, agent_id: str, result
+    ) -> None:
+        """
+        Hook called after an agent execution completes successfully.
+        Override in subclasses to inspect or react to agent results.
+
+        Args:
+            user_id: The user ID for the current execution.
+            context: The current execution context (with access to store, etc.).
+            agent_id: The ID of the agent that was executed.
+            result: The result returned by the agent (KeyStoreResponse, StrResponse, etc.).
+        """
+        pass
+
     def generate_function_calls(self, user_id: str) -> List[LLMFunction]:
         functions = []
         for agent in self.available_agents(user_id):
@@ -227,6 +242,9 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
     ) -> Message:
         try:
             result = await self.agent_execution(user_id, iter_context, function_call)
+
+            # Call the lifecycle hook
+            await self.on_agent_result(user_id, context, function_call.name, result)
 
             if isinstance(result, Message):
                 return result

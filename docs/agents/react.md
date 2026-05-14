@@ -60,6 +60,64 @@ class MyOrchestrator(ReActAgent):
 
 In this example, the `ResponsiveThinkingAgent` emits a feedback message to the user, showing the reasoning process in real-time.
 
+## Lifecycle Hooks
+
+### `on_agent_result`
+
+The `on_agent_result` hook is called after each agent execution completes successfully within the ReAct loop. Override it in your subclass to inspect, log, or react to agent results without modifying the core execution flow.
+
+**Signature:**
+
+```python
+async def on_agent_result(
+    self, user_id: str, context: Context, agent_id: str, result
+) -> None:
+```
+
+**Parameters:**
+
+| Parameter  | Type      | Description                                                                 |
+|------------|-----------|-----------------------------------------------------------------------------|
+| `user_id`  | `str`     | The user ID for the current execution.                                      |
+| `context`  | `Context` | The current execution context (with access to store, tracing, etc.).        |
+| `agent_id` | `str`     | The ID of the agent that was executed.                                       |
+| `result`   | `Any`     | The result returned by the agent (`KeyStoreResponse`, `StrResponse`, etc.). |
+
+**Example: Logging agent executions**
+
+```python
+class MyOrchestrator(ReActAgent):
+    async def on_agent_result(self, user_id, context, agent_id, result):
+        print(f"Agent '{agent_id}' completed for user '{user_id}' with result: {result}")
+```
+
+**Example: Tracking usage metrics**
+
+```python
+class MetricsOrchestrator(ReActAgent):
+    def __init__(self):
+        super().__init__()
+        self.execution_count = {}
+
+    async def on_agent_result(self, user_id, context, agent_id, result):
+        self.execution_count[agent_id] = self.execution_count.get(agent_id, 0) + 1
+```
+
+**Example: Conditional side-effects based on result type**
+
+```python
+from agentswarm.datamodels import KeyStoreResponse
+
+class NotifyingOrchestrator(ReActAgent):
+    async def on_agent_result(self, user_id, context, agent_id, result):
+        if isinstance(result, KeyStoreResponse):
+            # Notify external system when data is stored
+            await notify_data_stored(user_id, result.key, result.description)
+```
+
+!!! note
+    The hook is called with the **parent** context (not the iteration context), giving you access to the full execution state. If the agent execution raises an exception, the hook is **not** called—the error is handled separately and reported back to the LLM.
+
 
 ## API Reference
 

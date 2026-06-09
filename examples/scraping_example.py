@@ -63,7 +63,7 @@ async def main():
     print(f"{Colors.GREEN}Trace ID: {trace_id}{Colors.END}")
 
     prompt = """
-    Visit the sitemap https://www.wired.com/sitemap.xml?year=2025&month=12&week=2 and extract the first 15 links that point to articles about artificial intelligence and AI.
+    Visit the sitemap https://www.wired.com/sitemap-2026-06.xml and extract the first 15 links that point to articles about artificial intelligence and AI.
     If you find less than 15 links, proceed only with those you have found. 
     For each of these articles, visit the link, generate a summary and finally create a well written report. 
     The report must include for each article: the title, the original link, a vote from 1 to 5 that how much an article seems interesting and impactful (try to be honest, you will save my time) and a brief summary of maximum 5 lines.
@@ -80,7 +80,7 @@ async def main():
         messages=conversation,
         store=store,
         tracing=tracing,
-        default_llm=GeminiLLM(client=client),
+        default_llm=GeminiLLM(client=client, model="gemini-3.1-flash-lite"),
     )
     tracing.trace_agent(context, master_agent.id(), {"task": prompt})
 

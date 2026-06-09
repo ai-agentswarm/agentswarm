@@ -15,7 +15,7 @@ class GeminiLLM(LLM):
     def __init__(
         self,
         api_key: str = None,
-        model: str = "gemini-3-flash-preview",
+        model: str = "gemini-3.1-flash-lite",
         client: Client = None,
     ):
         if api_key is None and client is None:

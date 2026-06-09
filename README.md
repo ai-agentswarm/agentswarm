@@ -63,7 +63,7 @@ from google.genai import Client
 async def main():
     # Setup dependencies
     client = Client(api_key="YOUR_API_KEY")
-    llm = GeminiLLM(client=client, model="gemini-3-flash-preview")
+    llm = GeminiLLM(client=client, model="gemini-3.1-flash-lite")
     store = LocalStore()
     
     # Create the agent

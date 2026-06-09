@@ -165,7 +165,6 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
 
         current_context = self.generate_messages_context(user_id, context, input)
         iteration = 0
-        from_prev_iteration = False
 
         while iteration < self.max_iterations:
 
@@ -180,10 +179,6 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
             context.tracing.trace_loop_step(iter_context, f"Iteration {iteration}")
 
             tmp_context = current_context
-            if from_prev_iteration:
-                tmp_context = tmp_context + [
-                    Message(type="user", content="Elaborate the results of the agents")
-                ]
 
             response = await self.get_llm(user_id).generate(
                 tmp_context,
@@ -229,7 +224,6 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
 
             current_context = current_context + output
             iteration += 1
-            from_prev_iteration = True
 
         raise Exception("Max iterations reached")
 

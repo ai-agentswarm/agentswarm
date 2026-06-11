@@ -45,6 +45,6 @@ The `GeminiLLM` implementation connects to Google's Vertex AI or Generative AI S
 
 ### Reliable LLM (Wrapper)
 
-The `ReliableLLM` is a wrapper that adds retry and timeout logic to any other LLM.
+The `ReliableLLM` is a wrapper that adds robustness to any other LLM: an inactivity (idle) timeout, repetition-loop detection, an optional output cap, and automatic retries with exponential backoff.
 
 [Learn more about Reliable LLM](./reliable_llm.md)

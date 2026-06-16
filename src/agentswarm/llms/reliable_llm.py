@@ -18,6 +18,12 @@ class _LoopDetector:
     repeated consecutively at least ``min_repetitions`` times. This catches the
     classic failure mode where an LLM gets stuck re-emitting the same word,
     line, or phrase indefinitely, regardless of how fast the tokens arrive.
+
+    Whitespace-only patterns are treated more leniently via
+    ``whitespace_min_repetitions``: short runs of spaces, tabs or newlines are
+    common in legitimate output (indentation, alignment, blank lines), so a
+    much higher repetition count is required before a pure-whitespace pattern
+    is declared a loop. A truly runaway whitespace stream is still caught.
     """
 
     def __init__(
@@ -25,14 +31,21 @@ class _LoopDetector:
         min_repetitions: int = 12,
         max_pattern_length: int = 256,
         check_every: int = 16,
+        whitespace_min_repetitions: int = 64,
     ):
         if min_repetitions < 2:
             raise ValueError("min_repetitions must be at least 2")
+        if whitespace_min_repetitions < min_repetitions:
+            raise ValueError(
+                "whitespace_min_repetitions must be >= min_repetitions"
+            )
         self.min_repetitions = min_repetitions
         self.max_pattern_length = max_pattern_length
         self.check_every = max(1, check_every)
-        # The window only needs to hold the longest detectable repetition.
-        self._window_size = max_pattern_length * (min_repetitions + 1)
+        self.whitespace_min_repetitions = whitespace_min_repetitions
+        # The window must hold the longest detectable repetition, which is the
+        # most lenient (whitespace) case for the largest pattern length.
+        self._window_size = max_pattern_length * (whitespace_min_repetitions + 1)
         self._buffer = ""
         self._since_check = 0
 
@@ -50,10 +63,20 @@ class _LoopDetector:
 
         s = self._buffer
         n = len(s)
+        # ``max_p`` is bounded by the strictest (non-whitespace) case; for each
+        # candidate pattern the actual required repetitions are resolved below.
         max_p = min(self.max_pattern_length, n // self.min_repetitions)
         for p in range(1, max_p + 1):
             unit = s[n - p : n]
-            for r in range(2, self.min_repetitions + 1):
+            required = (
+                self.whitespace_min_repetitions
+                if unit.isspace()
+                else self.min_repetitions
+            )
+            # Not enough buffered characters to confirm this many repetitions.
+            if required * p > n:
+                continue
+            for r in range(2, required + 1):
                 if s[n - r * p : n - (r - 1) * p] != unit:
                     break
             else:
@@ -124,10 +147,14 @@ class _StreamGuard(FeedbackSystem):
             unit = self._detector.detect()
             if unit is not None:
                 preview = unit if len(unit) <= 40 else unit[:40] + "..."
+                reps = (
+                    self._detector.whitespace_min_repetitions
+                    if unit.isspace()
+                    else self._detector.min_repetitions
+                )
                 self._abort(
                     LLMLoopError(
-                        "LLM stream stuck repeating "
-                        f"{self._detector.min_repetitions}+ times: {preview!r}"
+                        f"LLM stream stuck repeating {reps}+ times: {preview!r}"
                     )
                 )
 
@@ -163,7 +190,9 @@ class ReliableLLM(LLM):
       2. **Repetition loops.** When a model "goes mad" and keeps emitting the
          same word/line/phrase, the tokens keep flowing so the timeout would
          not help. A loop detector watches the stream and aborts as soon as a
-         short pattern repeats consecutively too many times.
+         short pattern repeats consecutively too many times. Pure-whitespace
+         patterns use a higher repetition threshold so that legitimate
+         indentation and blank lines are not mistaken for a loop.
 
       3. **Output cap (optional).** A hard limit on total emitted characters,
          as a last-resort bound on runaway generations.
@@ -189,6 +218,7 @@ class ReliableLLM(LLM):
         loop_detection: bool = True,
         loop_min_repetitions: int = 12,
         loop_max_pattern_length: int = 256,
+        loop_whitespace_min_repetitions: int = 64,
         max_output_chars: Optional[int] = None,
     ):
         """
@@ -206,6 +236,12 @@ class ReliableLLM(LLM):
                 pattern before a loop is declared. Defaults to 12.
             loop_max_pattern_length (int): Longest repeating pattern (in
                 characters) considered by the detector. Defaults to 256.
+            loop_whitespace_min_repetitions (int): Minimum consecutive
+                repetitions required before a pure-whitespace pattern (spaces,
+                tabs, newlines) is declared a loop. Higher than
+                ``loop_min_repetitions`` to avoid false positives on legitimate
+                indentation or blank lines while still catching runaway
+                whitespace. Must be >= ``loop_min_repetitions``. Defaults to 64.
             max_output_chars (Optional[int]): Hard cap on total emitted
                 characters. ``None`` disables the cap. Defaults to None.
         """
@@ -217,6 +253,7 @@ class ReliableLLM(LLM):
         self.loop_detection = loop_detection
         self.loop_min_repetitions = loop_min_repetitions
         self.loop_max_pattern_length = loop_max_pattern_length
+        self.loop_whitespace_min_repetitions = loop_whitespace_min_repetitions
         self.max_output_chars = max_output_chars
 
     async def generate(
@@ -266,6 +303,7 @@ class ReliableLLM(LLM):
             _LoopDetector(
                 min_repetitions=self.loop_min_repetitions,
                 max_pattern_length=self.loop_max_pattern_length,
+                whitespace_min_repetitions=self.loop_whitespace_min_repetitions,
             )
             if self.loop_detection
             else None

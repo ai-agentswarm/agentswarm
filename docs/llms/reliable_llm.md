@@ -5,7 +5,7 @@ The `ReliableLLM` class is a wrapper designed to enhance any LLM implementation 
 It protects against three distinct failure modes, all observed live on the token stream through the `FeedbackSystem`:
 
 1. **Inactivity timeout** — a request is aborted only when `timeout` seconds elapse *without a new token*. This is **not** a total-duration timeout: a legitimately long generation that keeps streaming tokens is never penalized. It catches the two cases that actually matter — a model that never starts responding (time-to-first-token), and a stream that stalls between chunks.
-2. **Repetition-loop detection** — when a model "goes mad" and keeps emitting the same word/line/phrase, the tokens keep flowing, so the timeout would never trigger. A loop detector watches the stream and aborts as soon as a short pattern repeats consecutively too many times.
+2. **Repetition-loop detection** — when a model "goes mad" and keeps emitting the same word/line/phrase, the tokens keep flowing, so the timeout would never trigger. A loop detector watches the stream and aborts as soon as a short pattern repeats consecutively too many times. Pure-whitespace patterns (spaces, tabs, newlines) use a separate, higher threshold so that legitimate indentation and blank lines are not mistaken for a loop, while a truly runaway whitespace stream is still caught.
 3. **Output cap (optional)** — a hard limit on the total number of emitted characters, as a last-resort bound on runaway generations.
 
 Every aborted attempt is retried with exponential backoff, up to `max_retries` times.
@@ -32,6 +32,7 @@ The `ReliableLLM` constructor accepts the following parameters:
 | `loop_detection` | `bool` | `True` | Enable repetition-loop detection. |
 | `loop_min_repetitions` | `int` | `12` | Minimum consecutive repetitions of a pattern before a loop is declared. |
 | `loop_max_pattern_length` | `int` | `256` | Longest repeating pattern (in characters) considered by the detector. |
+| `loop_whitespace_min_repetitions` | `int` | `64` | Minimum consecutive repetitions before a **pure-whitespace** pattern (spaces, tabs, newlines) is declared a loop. Higher than `loop_min_repetitions` to avoid false positives on legitimate indentation or blank lines. Must be `>= loop_min_repetitions`. |
 | `max_output_chars` | `Optional[int]` | `None` | Hard cap on total emitted characters. `None` disables the cap. |
 
 ## Usage Example
@@ -48,9 +49,10 @@ reliable_llm = ReliableLLM(
     timeout=10.0,              # abort if no token arrives for 10 seconds
     max_retries=5,             # retry up to 5 times
     retry_delay=2.0,           # start with 2 seconds delay
-    loop_detection=True,       # abort on degenerate repetition loops
-    loop_min_repetitions=12,   # a pattern repeated 12+ times is a loop
-    max_output_chars=100_000,  # optional hard cap on output size
+    loop_detection=True,                # abort on degenerate repetition loops
+    loop_min_repetitions=12,            # a pattern repeated 12+ times is a loop
+    loop_whitespace_min_repetitions=64, # but whitespace must repeat 64+ times
+    max_output_chars=100_000,           # optional hard cap on output size
 )
 
 # 3. Use it exactly like any other LLM
@@ -62,7 +64,7 @@ reliable_llm = ReliableLLM(
 When `generate()` is called, each attempt runs the wrapped LLM concurrently with a watchdog. An internal proxy feedback (`_StreamGuard`) is always supplied to the wrapped LLM. For streaming-capable backends this also enables incremental token delivery, and it lets the watchdog observe the stream token by token:
 
 1. Every token refreshes a `last_activity` timestamp. If `timeout` seconds pass without a new token, the attempt is aborted with a `TimeoutError` (inactivity timeout).
-2. Token text is fed to a sliding-window loop detector. If a short pattern repeats consecutively at least `loop_min_repetitions` times, the attempt is aborted with an `LLMLoopError`.
+2. Token text is fed to a sliding-window loop detector. If a short pattern repeats consecutively at least `loop_min_repetitions` times, the attempt is aborted with an `LLMLoopError`. Patterns made entirely of whitespace must instead repeat at least `loop_whitespace_min_repetitions` times before they count as a loop.
 3. If `max_output_chars` is set and the total emitted text exceeds it, the attempt is aborted with an `LLMOutputLimitError`.
 4. On any abort, a warning is logged. If attempts remain, the wrapper waits for the current delay (multiplied by `backoff_factor` after each failure) and tries again.
 5. If all retries are exhausted, the last exception is raised.

@@ -226,3 +226,63 @@ async def test_output_cap_aborts():
     )
     with pytest.raises(LLMOutputLimitError):
         await reliable.generate([])
+
+
+# --- Long-pattern ("reasoning paragraph") loop regression -------------------
+
+from agentswarm.llms.reliable_llm import _LoopDetector
+
+
+# The exact failure mode reported in the field: the model gets stuck
+# re-emitting a whole multi-sentence "Thought:" paragraph. Its length is well
+# over the old 256-char pattern ceiling, so it was previously never detected.
+_REASONING_PARAGRAPH = (
+    "Thought: The user is asking for a timer ('mi serve un timer'). This is a "
+    "very vague and under-specified request. According to the instructions, I "
+    "should not rush to build it. I need to ask focused clarifying questions to "
+    "define the requirements (purpose, key features, layout, visual style, "
+    "target users) and propose a short plan. I will respond in Italian.. "
+    "Self-correction: I will not call the AppBuilderAgent yet. I will first ask "
+    "the user for clarifications."
+)
+
+
+def test_detector_catches_long_paragraph_loop():
+    assert len(_REASONING_PARAGRAPH) > 256  # guards the regression premise
+    detector = _LoopDetector()
+    detected = None
+    for _ in range(10):
+        detector.feed(_REASONING_PARAGRAPH)
+        detected = detector.detect()
+        if detected is not None:
+            break
+    assert detected is not None
+    # A long unit should require only a few repetitions, not a dozen.
+    assert detector.required_repetitions(_REASONING_PARAGRAPH) <= 4
+
+
+def test_detector_threshold_is_length_aware():
+    detector = _LoopDetector()
+    # Single character: strictest threshold.
+    assert detector.required_repetitions("x") == detector.min_repetitions
+    # Whole paragraph: most lenient (long-pattern) threshold.
+    assert (
+        detector.required_repetitions(_REASONING_PARAGRAPH)
+        == detector.long_pattern_min_repetitions
+    )
+    # Whitespace stays strict.
+    assert (
+        detector.required_repetitions("   ")
+        == detector.whitespace_min_repetitions
+    )
+
+
+@pytest.mark.asyncio
+async def test_paragraph_loop_detection_aborts():
+    # Emits the long paragraph repeatedly with default settings (no tuning of
+    # loop_min_repetitions) to prove the out-of-the-box guard now catches it.
+    mock = LoopingLLM(unit=_REASONING_PARAGRAPH, count=10000)
+    reliable = ReliableLLM(mock, timeout=30.0, max_retries=0)
+    with pytest.raises(LLMLoopError):
+        await reliable.generate([])
+    assert mock.call_count == 1

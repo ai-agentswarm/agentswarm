@@ -14,27 +14,54 @@ class _LoopDetector:
     Detects degenerate repetition loops in a token stream.
 
     It keeps a bounded sliding window of the most recent characters and, every
-    few characters, checks whether the tail of the window is a short pattern
-    repeated consecutively at least ``min_repetitions`` times. This catches the
-    classic failure mode where an LLM gets stuck re-emitting the same word,
-    line, or phrase indefinitely, regardless of how fast the tokens arrive.
+    few characters, checks whether the tail of the window is a pattern repeated
+    consecutively "enough" times. This catches the classic failure mode where
+    an LLM gets stuck re-emitting the same word, line, sentence or whole
+    paragraph indefinitely, regardless of how fast the tokens arrive.
 
-    Whitespace-only patterns are treated more leniently via
-    ``whitespace_min_repetitions``: short runs of spaces, tabs or newlines are
+    **Length-aware threshold.** The number of consecutive copies required to
+    declare a loop scales with the pattern length, because the two failure
+    modes have very different statistics:
+
+      - A *short* pattern (a single character, a word) can repeat a handful of
+        times in perfectly legitimate output, so many copies are required
+        before it is suspicious (up to ``min_repetitions``).
+      - A *long* pattern (a full sentence or paragraph) repeating verbatim even
+        a few times in a row is, with overwhelming probability, a loop. The
+        chance of a 400-character span recurring by accident is negligible, so
+        only ``long_pattern_min_repetitions`` copies are required.
+
+    Concretely, the required repetition count for a pattern of length ``p`` is
+    ``clamp(ceil(min_loop_span / p), long_pattern_min_repetitions,
+    min_repetitions)``: it decreases as the pattern grows, bottoming out at
+    ``long_pattern_min_repetitions`` for long units and topping out at
+    ``min_repetitions`` for very short ones. This is what lets it catch the
+    multi-sentence "reasoning loop" that a fixed short pattern length / high
+    repetition count would silently miss.
+
+    **Whitespace.** Pure-whitespace patterns (spaces, tabs, newlines) are
     common in legitimate output (indentation, alignment, blank lines), so a
-    much higher repetition count is required before a pure-whitespace pattern
-    is declared a loop. A truly runaway whitespace stream is still caught.
+    much higher count, ``whitespace_min_repetitions``, is required before a
+    short whitespace pattern is declared a loop. A truly runaway whitespace
+    stream is still caught (it reduces to a period-1 pattern).
     """
 
     def __init__(
         self,
         min_repetitions: int = 12,
-        max_pattern_length: int = 256,
+        max_pattern_length: int = 2048,
         check_every: int = 16,
         whitespace_min_repetitions: int = 64,
+        long_pattern_min_repetitions: int = 4,
+        min_loop_span: int = 48,
+        whitespace_max_pattern_length: int = 8,
     ):
-        if min_repetitions < 2:
-            raise ValueError("min_repetitions must be at least 2")
+        if long_pattern_min_repetitions < 2:
+            raise ValueError("long_pattern_min_repetitions must be at least 2")
+        if min_repetitions < long_pattern_min_repetitions:
+            raise ValueError(
+                "min_repetitions must be >= long_pattern_min_repetitions"
+            )
         if whitespace_min_repetitions < min_repetitions:
             raise ValueError(
                 "whitespace_min_repetitions must be >= min_repetitions"
@@ -43,11 +70,31 @@ class _LoopDetector:
         self.max_pattern_length = max_pattern_length
         self.check_every = max(1, check_every)
         self.whitespace_min_repetitions = whitespace_min_repetitions
-        # The window must hold the longest detectable repetition, which is the
-        # most lenient (whitespace) case for the largest pattern length.
-        self._window_size = max_pattern_length * (whitespace_min_repetitions + 1)
+        self.long_pattern_min_repetitions = long_pattern_min_repetitions
+        self.min_loop_span = min_loop_span
+        self.whitespace_max_pattern_length = whitespace_max_pattern_length
+        # The window must hold the longest repetition we may need to confirm.
+        # For long (numeric-threshold) patterns that is the largest pattern at
+        # ``long_pattern_min_repetitions`` copies; for short whitespace patterns
+        # it is ``whitespace_min_repetitions`` copies of a small unit. One extra
+        # copy of margin lets detection succeed even when it fires mid-pattern.
+        self._window_size = max(
+            (long_pattern_min_repetitions + 1) * max_pattern_length,
+            (whitespace_min_repetitions + 1) * whitespace_max_pattern_length,
+        )
         self._buffer = ""
         self._since_check = 0
+
+    def required_repetitions(self, unit: str) -> int:
+        """Consecutive copies of ``unit`` needed before it counts as a loop."""
+        p = len(unit)
+        if p == 0:
+            return self.min_repetitions
+        if unit.isspace() and p <= self.whitespace_max_pattern_length:
+            return self.whitespace_min_repetitions
+        # ceil(min_loop_span / p), clamped to [long_pattern_min, min_reps].
+        base = -(-self.min_loop_span // p)
+        return min(self.min_repetitions, max(self.long_pattern_min_repetitions, base))
 
     def feed(self, text: str):
         self._buffer += text
@@ -63,16 +110,19 @@ class _LoopDetector:
 
         s = self._buffer
         n = len(s)
-        # ``max_p`` is bounded by the strictest (non-whitespace) case; for each
-        # candidate pattern the actual required repetitions are resolved below.
-        max_p = min(self.max_pattern_length, n // self.min_repetitions)
+        if n < 2:
+            return None
+        last = s[-1]
+        # At least two copies must fit, so the period cannot exceed n // 2.
+        max_p = min(self.max_pattern_length, n // 2)
         for p in range(1, max_p + 1):
+            # Cheap prune: a p-periodic suffix has s[-1] == s[-1 - p]. This skips
+            # the vast majority of candidate lengths with a single comparison
+            # before any slice is materialized.
+            if s[n - 1 - p] != last:
+                continue
             unit = s[n - p : n]
-            required = (
-                self.whitespace_min_repetitions
-                if unit.isspace()
-                else self.min_repetitions
-            )
+            required = self.required_repetitions(unit)
             # Not enough buffered characters to confirm this many repetitions.
             if required * p > n:
                 continue
@@ -147,11 +197,7 @@ class _StreamGuard(FeedbackSystem):
             unit = self._detector.detect()
             if unit is not None:
                 preview = unit if len(unit) <= 40 else unit[:40] + "..."
-                reps = (
-                    self._detector.whitespace_min_repetitions
-                    if unit.isspace()
-                    else self._detector.min_repetitions
-                )
+                reps = self._detector.required_repetitions(unit)
                 self._abort(
                     LLMLoopError(
                         f"LLM stream stuck repeating {reps}+ times: {preview!r}"
@@ -217,8 +263,10 @@ class ReliableLLM(LLM):
         backoff_factor: float = 2.0,
         loop_detection: bool = True,
         loop_min_repetitions: int = 12,
-        loop_max_pattern_length: int = 256,
+        loop_max_pattern_length: int = 2048,
         loop_whitespace_min_repetitions: int = 64,
+        loop_long_pattern_min_repetitions: int = 4,
+        loop_min_span: int = 48,
         max_output_chars: Optional[int] = None,
     ):
         """
@@ -232,16 +280,29 @@ class ReliableLLM(LLM):
             retry_delay (float): Initial delay between retries in seconds. Defaults to 1.0.
             backoff_factor (float): Multiplier for the retry delay. Defaults to 2.0.
             loop_detection (bool): Enable repetition-loop detection. Defaults to True.
-            loop_min_repetitions (int): Minimum consecutive repetitions of a
-                pattern before a loop is declared. Defaults to 12.
+            loop_min_repetitions (int): Maximum consecutive repetitions required
+                before a loop is declared; this is the threshold for the
+                shortest patterns (e.g. a single repeated character). Longer
+                patterns require progressively fewer copies. Defaults to 12.
             loop_max_pattern_length (int): Longest repeating pattern (in
-                characters) considered by the detector. Defaults to 256.
+                characters) considered by the detector. Must be large enough to
+                cover whole repeated sentences/paragraphs, not just words.
+                Defaults to 2048.
             loop_whitespace_min_repetitions (int): Minimum consecutive
-                repetitions required before a pure-whitespace pattern (spaces,
-                tabs, newlines) is declared a loop. Higher than
+                repetitions required before a short pure-whitespace pattern
+                (spaces, tabs, newlines) is declared a loop. Higher than
                 ``loop_min_repetitions`` to avoid false positives on legitimate
                 indentation or blank lines while still catching runaway
                 whitespace. Must be >= ``loop_min_repetitions``. Defaults to 64.
+            loop_long_pattern_min_repetitions (int): Minimum consecutive
+                repetitions required for a long pattern (a full sentence or
+                paragraph). A long unit recurring verbatim even a few times is
+                almost certainly a loop, so this is small. Must be >= 2 and
+                <= ``loop_min_repetitions``. Defaults to 4.
+            loop_min_span (int): Target repeated span, in characters, used to
+                interpolate the required repetition count between
+                ``loop_long_pattern_min_repetitions`` (long patterns) and
+                ``loop_min_repetitions`` (short patterns). Defaults to 48.
             max_output_chars (Optional[int]): Hard cap on total emitted
                 characters. ``None`` disables the cap. Defaults to None.
         """
@@ -254,6 +315,8 @@ class ReliableLLM(LLM):
         self.loop_min_repetitions = loop_min_repetitions
         self.loop_max_pattern_length = loop_max_pattern_length
         self.loop_whitespace_min_repetitions = loop_whitespace_min_repetitions
+        self.loop_long_pattern_min_repetitions = loop_long_pattern_min_repetitions
+        self.loop_min_span = loop_min_span
         self.max_output_chars = max_output_chars
 
     async def generate(
@@ -304,6 +367,8 @@ class ReliableLLM(LLM):
                 min_repetitions=self.loop_min_repetitions,
                 max_pattern_length=self.loop_max_pattern_length,
                 whitespace_min_repetitions=self.loop_whitespace_min_repetitions,
+                long_pattern_min_repetitions=self.loop_long_pattern_min_repetitions,
+                min_loop_span=self.loop_min_span,
             )
             if self.loop_detection
             else None

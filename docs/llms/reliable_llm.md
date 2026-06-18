@@ -30,9 +30,11 @@ The `ReliableLLM` constructor accepts the following parameters:
 | `retry_delay` | `float` | `1.0` | Initial delay between retries in seconds. |
 | `backoff_factor` | `float` | `2.0` | Multiplier applied to the delay after each failure. |
 | `loop_detection` | `bool` | `True` | Enable repetition-loop detection. |
-| `loop_min_repetitions` | `int` | `12` | Minimum consecutive repetitions of a pattern before a loop is declared. |
-| `loop_max_pattern_length` | `int` | `256` | Longest repeating pattern (in characters) considered by the detector. |
-| `loop_whitespace_min_repetitions` | `int` | `64` | Minimum consecutive repetitions before a **pure-whitespace** pattern (spaces, tabs, newlines) is declared a loop. Higher than `loop_min_repetitions` to avoid false positives on legitimate indentation or blank lines. Must be `>= loop_min_repetitions`. |
+| `loop_min_repetitions` | `int` | `12` | Consecutive repetitions required to flag the **shortest** patterns (e.g. a single repeated character). Longer patterns need progressively fewer copies. |
+| `loop_max_pattern_length` | `int` | `2048` | Longest repeating pattern (in characters) considered by the detector. Large enough to catch whole repeated sentences or paragraphs, not just words. |
+| `loop_whitespace_min_repetitions` | `int` | `64` | Minimum consecutive repetitions before a short **pure-whitespace** pattern (spaces, tabs, newlines) is declared a loop. Higher than `loop_min_repetitions` to avoid false positives on legitimate indentation or blank lines. Must be `>= loop_min_repetitions`. |
+| `loop_long_pattern_min_repetitions` | `int` | `4` | Consecutive repetitions required to flag a **long** pattern (a full sentence or paragraph). A long unit recurring verbatim even a few times is almost certainly a loop. Must be `>= 2` and `<= loop_min_repetitions`. |
+| `loop_min_span` | `int` | `48` | Target repeated span (in characters) used to interpolate the required repetition count between long and short patterns. |
 | `max_output_chars` | `Optional[int]` | `None` | Hard cap on total emitted characters. `None` disables the cap. |
 
 ## Usage Example
@@ -64,7 +66,7 @@ reliable_llm = ReliableLLM(
 When `generate()` is called, each attempt runs the wrapped LLM concurrently with a watchdog. An internal proxy feedback (`_StreamGuard`) is always supplied to the wrapped LLM. For streaming-capable backends this also enables incremental token delivery, and it lets the watchdog observe the stream token by token:
 
 1. Every token refreshes a `last_activity` timestamp. If `timeout` seconds pass without a new token, the attempt is aborted with a `TimeoutError` (inactivity timeout).
-2. Token text is fed to a sliding-window loop detector. If a short pattern repeats consecutively at least `loop_min_repetitions` times, the attempt is aborted with an `LLMLoopError`. Patterns made entirely of whitespace must instead repeat at least `loop_whitespace_min_repetitions` times before they count as a loop.
+2. Token text is fed to a sliding-window loop detector. If a pattern repeats consecutively "enough" times, the attempt is aborted with an `LLMLoopError`. The threshold is **length-aware**: a short pattern (a character or word) must repeat up to `loop_min_repetitions` times, while a long pattern (a full sentence or paragraph) only needs `loop_long_pattern_min_repetitions` copies, since long verbatim recurrences are almost never legitimate. Patterns made entirely of whitespace must instead repeat at least `loop_whitespace_min_repetitions` times before they count as a loop.
 3. If `max_output_chars` is set and the total emitted text exceeds it, the attempt is aborted with an `LLMOutputLimitError`.
 4. On any abort, a warning is logged. If attempts remain, the wrapper waits for the current delay (multiplied by `backoff_factor` after each failure) and tries again.
 5. If all retries are exhausted, the last exception is raised.

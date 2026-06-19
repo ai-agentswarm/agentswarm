@@ -39,22 +39,39 @@ class _LoopDetector:
     multi-sentence "reasoning loop" that a fixed short pattern length / high
     repetition count would silently miss.
 
-    **Whitespace.** Pure-whitespace patterns (spaces, tabs, newlines) are
-    common in legitimate output (indentation, alignment, blank lines), so a
-    much higher count, ``whitespace_min_repetitions``, is required before a
-    short whitespace pattern is declared a loop. A truly runaway whitespace
-    stream is still caught (it reduces to a period-1 pattern).
+    **Filler characters.** Short patterns made up entirely of "filler"
+    characters are common in legitimate output and must not be mistaken for a
+    loop. This covers two overlapping families:
+
+      - *Whitespace* (spaces, tabs, newlines): indentation, alignment, blank
+        lines.
+      - *Structural formatting* characters (``- = _ * # | ~ + .``): Markdown
+        table separators (``|--------|``), horizontal rules (``------``),
+        header underlines (``======``), leader dots (``......``) and similar.
+        A single repeated dash or pipe is exactly what a Markdown table emits,
+        so it must not trip the strict short-pattern threshold.
+
+    Any short pattern composed solely of such filler characters requires a much
+    higher count, ``whitespace_min_repetitions``, before it is declared a loop.
+    A truly runaway filler stream is still caught (the high threshold is small
+    next to the thousands of characters a stuck model produces, and the output
+    cap remains the final backstop).
     """
+
+    #: Structural formatting characters that, like whitespace, legitimately
+    #: tile in real output (Markdown tables, rules, header underlines, leaders).
+    DEFAULT_FILLER_CHARS = frozenset("-=_*#|~+.")
 
     def __init__(
         self,
         min_repetitions: int = 12,
         max_pattern_length: int = 2048,
         check_every: int = 16,
-        whitespace_min_repetitions: int = 64,
+        whitespace_min_repetitions: int = 256,
         long_pattern_min_repetitions: int = 4,
         min_loop_span: int = 48,
         whitespace_max_pattern_length: int = 8,
+        filler_chars: Optional[frozenset] = None,
     ):
         if long_pattern_min_repetitions < 2:
             raise ValueError("long_pattern_min_repetitions must be at least 2")
@@ -73,6 +90,9 @@ class _LoopDetector:
         self.long_pattern_min_repetitions = long_pattern_min_repetitions
         self.min_loop_span = min_loop_span
         self.whitespace_max_pattern_length = whitespace_max_pattern_length
+        self.filler_chars = (
+            filler_chars if filler_chars is not None else self.DEFAULT_FILLER_CHARS
+        )
         # The window must hold the longest repetition we may need to confirm.
         # For long (numeric-threshold) patterns that is the largest pattern at
         # ``long_pattern_min_repetitions`` copies; for short whitespace patterns
@@ -85,12 +105,27 @@ class _LoopDetector:
         self._buffer = ""
         self._since_check = 0
 
+    def _is_filler(self, unit: str) -> bool:
+        """True if ``unit`` is composed solely of whitespace/structural chars.
+
+        Filler characters (spaces, tabs, newlines, and Markdown structural
+        characters such as ``- = _ * # | ~ + .``) tile legitimately in real
+        output, so any run made up entirely of them gets the lenient
+        ``whitespace_min_repetitions`` threshold rather than the strict
+        short-pattern one. The check is on character composition, not length:
+        a long run of dashes is still just filler and must not be treated as a
+        suspicious "long pattern".
+        """
+        if not unit:
+            return False
+        return all(ch.isspace() or ch in self.filler_chars for ch in unit)
+
     def required_repetitions(self, unit: str) -> int:
         """Consecutive copies of ``unit`` needed before it counts as a loop."""
         p = len(unit)
         if p == 0:
             return self.min_repetitions
-        if unit.isspace() and p <= self.whitespace_max_pattern_length:
+        if self._is_filler(unit):
             return self.whitespace_min_repetitions
         # ceil(min_loop_span / p), clamped to [long_pattern_min, min_reps].
         base = -(-self.min_loop_span // p)
@@ -236,9 +271,11 @@ class ReliableLLM(LLM):
       2. **Repetition loops.** When a model "goes mad" and keeps emitting the
          same word/line/phrase, the tokens keep flowing so the timeout would
          not help. A loop detector watches the stream and aborts as soon as a
-         short pattern repeats consecutively too many times. Pure-whitespace
-         patterns use a higher repetition threshold so that legitimate
-         indentation and blank lines are not mistaken for a loop.
+         short pattern repeats consecutively too many times. Short patterns made
+         of filler characters (whitespace and Markdown structural characters
+         like ``- = _ * # | ~``) use a much higher repetition threshold so that
+         legitimate indentation, blank lines and table separators are not
+         mistaken for a loop.
 
       3. **Output cap (optional).** A hard limit on total emitted characters,
          as a last-resort bound on runaway generations.
@@ -264,9 +301,10 @@ class ReliableLLM(LLM):
         loop_detection: bool = True,
         loop_min_repetitions: int = 12,
         loop_max_pattern_length: int = 2048,
-        loop_whitespace_min_repetitions: int = 64,
+        loop_whitespace_min_repetitions: int = 256,
         loop_long_pattern_min_repetitions: int = 4,
         loop_min_span: int = 48,
+        loop_filler_chars: Optional[frozenset] = None,
         max_output_chars: Optional[int] = None,
     ):
         """
@@ -289,11 +327,13 @@ class ReliableLLM(LLM):
                 cover whole repeated sentences/paragraphs, not just words.
                 Defaults to 2048.
             loop_whitespace_min_repetitions (int): Minimum consecutive
-                repetitions required before a short pure-whitespace pattern
-                (spaces, tabs, newlines) is declared a loop. Higher than
-                ``loop_min_repetitions`` to avoid false positives on legitimate
-                indentation or blank lines while still catching runaway
-                whitespace. Must be >= ``loop_min_repetitions``. Defaults to 64.
+                repetitions required before a short *filler* pattern is declared
+                a loop. Filler patterns are runs of whitespace (spaces, tabs,
+                newlines) or Markdown structural characters (``- = _ * # | ~``),
+                which legitimately tile in tables, rules and indentation. Set
+                high enough to never trip on a wide table or a long separator
+                while still catching runaway filler. Must be >=
+                ``loop_min_repetitions``. Defaults to 256.
             loop_long_pattern_min_repetitions (int): Minimum consecutive
                 repetitions required for a long pattern (a full sentence or
                 paragraph). A long unit recurring verbatim even a few times is
@@ -303,6 +343,10 @@ class ReliableLLM(LLM):
                 interpolate the required repetition count between
                 ``loop_long_pattern_min_repetitions`` (long patterns) and
                 ``loop_min_repetitions`` (short patterns). Defaults to 48.
+            loop_filler_chars (Optional[frozenset]): Set of structural
+                characters that, together with whitespace, get the lenient
+                filler threshold. ``None`` uses the default
+                (``- = _ * # | ~ + .``).
             max_output_chars (Optional[int]): Hard cap on total emitted
                 characters. ``None`` disables the cap. Defaults to None.
         """
@@ -317,6 +361,7 @@ class ReliableLLM(LLM):
         self.loop_whitespace_min_repetitions = loop_whitespace_min_repetitions
         self.loop_long_pattern_min_repetitions = loop_long_pattern_min_repetitions
         self.loop_min_span = loop_min_span
+        self.loop_filler_chars = loop_filler_chars
         self.max_output_chars = max_output_chars
 
     async def generate(
@@ -369,6 +414,7 @@ class ReliableLLM(LLM):
                 whitespace_min_repetitions=self.loop_whitespace_min_repetitions,
                 long_pattern_min_repetitions=self.loop_long_pattern_min_repetitions,
                 min_loop_span=self.loop_min_span,
+                filler_chars=self.loop_filler_chars,
             )
             if self.loop_detection
             else None

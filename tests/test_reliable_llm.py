@@ -277,6 +277,71 @@ def test_detector_threshold_is_length_aware():
     )
 
 
+def test_filler_chars_use_lenient_threshold():
+    # Markdown structural characters tile legitimately (table separators,
+    # rules, header underlines), so they must use the high filler threshold,
+    # not the strict short-pattern one.
+    detector = _LoopDetector()
+    for unit in ("-", "=", "|", "_", "*", "#", "- ", "| ", "-=-"):
+        assert (
+            detector.required_repetitions(unit)
+            == detector.whitespace_min_repetitions
+        ), unit
+    # A pattern mixing letters is NOT filler and keeps the strict threshold.
+    assert detector.required_repetitions("-a") == detector.min_repetitions
+
+
+def test_no_false_positive_on_markdown_table_separator():
+    # A realistic Markdown table: a header, one separator row with long dash
+    # runs and padding spaces, then many *distinct* data rows. Nothing here is
+    # a genuine repetition, so the detector must stay silent.
+    detector = _LoopDetector()
+    detector.feed("| Name                | Value               |\n")
+    detector.feed("|---------------------|---------------------|\n")
+    detected = detector.detect()
+    assert detected is None
+    for i in range(200):
+        detector.feed(f"| item number {i:<7}| measured value {i:<4}|\n")
+        detected = detector.detect()
+        if detected is not None:
+            break
+    assert detected is None
+
+
+def test_runaway_dashes_still_detected():
+    # A genuinely stuck single-character (dash) stream must still be caught
+    # once it crosses the (high) filler threshold.
+    detector = _LoopDetector()
+    detected = None
+    for _ in range(detector.whitespace_min_repetitions * 3):
+        detector.feed("-")
+        detected = detector.detect()
+        if detected is not None:
+            break
+    assert detected == "-"
+
+
+@pytest.mark.asyncio
+async def test_no_false_positive_on_table_streaming():
+    # End-to-end: a model streaming a wide Markdown table must not be aborted.
+    class TableLLM(LLM):
+        async def generate(
+            self, messages, functions=None, feedback=None, temperature=0.0
+        ):
+            rows = ["| Column A    | Column B    |\n",
+                    "|-------------|-------------|\n"]
+            rows += [f"| value {i:<5}| data {i:<6}|\n" for i in range(40)]
+            for row in rows:
+                if feedback:
+                    feedback.push(Feedback(source="llm", payload=row))
+            return _success_output()
+
+    mock = TableLLM()
+    reliable = ReliableLLM(mock, timeout=30.0, max_retries=0)
+    output = await reliable.generate([])
+    assert output.text == "Success"
+
+
 @pytest.mark.asyncio
 async def test_paragraph_loop_detection_aborts():
     # Emits the long paragraph repeatedly with default settings (no tuning of

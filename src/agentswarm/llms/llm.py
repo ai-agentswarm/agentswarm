@@ -14,6 +14,8 @@ class LLMFunction(BaseModel):
 class LLMFunctionExecution(BaseModel):
     name: str = Field(description="The name of the function")
     arguments: dict = Field(description="The arguments of the function")
+    id: Optional[str] = None
+    thought_signature: Optional[bytes] = None
 
 
 from .usage import LLMUsage

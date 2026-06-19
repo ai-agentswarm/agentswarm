@@ -32,15 +32,55 @@ class GeminiLLM(LLM):
     ) -> LLMOutput:
         contents = []
         sys_instruct = []
-        for message in messages:
-            if message.type != "system":
-                role = "model" if message.type == "assistant" else message.type
+        pending_tool_parts = []
+
+        def flush_tools():
+            if pending_tool_parts:
                 contents.append(
-                    types.Content(role=role, parts=[types.Part(text=message.content)])
+                    types.Content(role="user", parts=list(pending_tool_parts))
                 )
-            else:
+                pending_tool_parts.clear()
+
+        for message in messages:
+            if message.type == "system":
                 sys_instruct.append(message.content)
-        if len(sys_instruct) == 0:
+                continue
+            if message.type == "tool":
+                resp = (
+                    message.content
+                    if isinstance(message.content, dict)
+                    else {"result": message.content}
+                )
+                fr = types.FunctionResponse(name=message.name, response=resp)
+                if message.tool_call_id:
+                    try:
+                        fr.id = message.tool_call_id
+                    except Exception:
+                        pass
+                pending_tool_parts.append(types.Part(function_response=fr))
+                continue
+            flush_tools()
+            if message.type in ("assistant", "completion"):
+                parts = []
+                if message.content:
+                    parts.append(types.Part(text=message.content))
+                for tc in (message.tool_calls or []):
+                    fc = types.FunctionCall(name=tc.name, args=tc.arguments)
+                    try:
+                        fc.id = tc.id
+                    except Exception:
+                        pass
+                    part = types.Part(function_call=fc)
+                    if tc.thought_signature is not None:
+                        part.thought_signature = tc.thought_signature
+                    parts.append(part)
+                contents.append(types.Content(role="model", parts=parts))
+            else:  # user / execution
+                contents.append(
+                    types.Content(role="user", parts=[types.Part(text=message.content)])
+                )
+        flush_tools()
+        if not sys_instruct:
             sys_instruct = None
 
         function_declarations = []
@@ -102,7 +142,10 @@ class GeminiLLM(LLM):
                                     pass
                             output_function_calls.append(
                                 LLMFunctionExecution(
-                                    name=part.function_call.name, arguments=args
+                                    name=part.function_call.name,
+                                    arguments=args,
+                                    id=getattr(part.function_call, "id", None),
+                                    thought_signature=getattr(part, "thought_signature", None),
                                 )
                             )
                 if chunk.usage_metadata:
@@ -188,7 +231,10 @@ class GeminiLLM(LLM):
                             pass
                     output_function_calls.append(
                         LLMFunctionExecution(
-                            name=part.function_call.name, arguments=args
+                            name=part.function_call.name,
+                            arguments=args,
+                            id=getattr(part.function_call, "id", None),
+                            thought_signature=getattr(part, "thought_signature", None),
                         )
                     )
 

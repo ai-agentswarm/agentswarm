@@ -1,5 +1,5 @@
 from .context import Context
-from .message import Message
+from .message import Message, ToolCall
 from .responses import (
     KeyStoreResponse,
     VoidResponse,
@@ -15,6 +15,7 @@ from .local_feedback import LocalFeedbackSystem
 __all__ = [
     "Context",
     "Message",
+    "ToolCall",
     "StrResponse",
     "KeyStoreResponse",
     "VoidResponse",

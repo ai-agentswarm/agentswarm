@@ -44,6 +44,28 @@ class Tracing(ABC):
         pass
 
 
+def _json_default(obj: Any) -> Any:
+    """
+    Fallback serializer for json.dumps to handle non-JSON-serializable
+    values that can appear in traces (e.g. bytes from Gemini thought
+    signatures, datetimes, sets). Ensures tracing never crashes the run.
+    """
+    if isinstance(obj, (bytes, bytearray)):
+        import base64
+
+        return base64.b64encode(obj).decode("ascii")
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, set):
+        return list(obj)
+    if hasattr(obj, "model_dump"):
+        try:
+            return obj.model_dump(mode="json")
+        except Exception:
+            return str(obj)
+    return str(obj)
+
+
 def _get_store_snapshot(store: Store) -> dict:
     """
     Returns a snapshot of the store.
@@ -81,11 +103,13 @@ class LocalTracing(Tracing):
                 "parent_step_id": context.parent_step_id,
                 "agent_id": agent_id,
                 "arguments": arguments,
-                "messages": [message.model_dump() for message in context.messages],
+                "messages": [
+                    message.model_dump() for message in context.messages
+                ],
                 "store": _get_store_snapshot(context.store),
                 "thoughts": context.thoughts,
             }
-            f.write(json.dumps(trace_data) + "\n")
+            f.write(json.dumps(trace_data, default=_json_default) + "\n")
 
     def trace_loop_step(self, context: Context, step_name: str):
         os.makedirs(self.trace_path, exist_ok=True)
@@ -97,11 +121,13 @@ class LocalTracing(Tracing):
                 "parent_step_id": context.parent_step_id,
                 "agent_id": step_name,  # Use agent_id field to store the step name for UI compatibility
                 "arguments": {},
-                "messages": [message.model_dump() for message in context.messages],
+                "messages": [
+                    message.model_dump() for message in context.messages
+                ],
                 "store": _get_store_snapshot(context.store),
                 "thoughts": context.thoughts,
             }
-            f.write(json.dumps(trace_data) + "\n")
+            f.write(json.dumps(trace_data, default=_json_default) + "\n")
 
     def trace_agent_result(self, context: Context, agent_id: str, result: Any):
         os.makedirs(self.trace_path, exist_ok=True)
@@ -134,11 +160,13 @@ class LocalTracing(Tracing):
                 "parent_step_id": context.parent_step_id,
                 "agent_id": agent_id,
                 "result": serialized_result,
-                "messages": [message.model_dump() for message in context.messages],
+                "messages": [
+                    message.model_dump() for message in context.messages
+                ],
                 "store": _get_store_snapshot(context.store),
                 "thoughts": context.thoughts,
             }
-            f.write(json.dumps(trace_data) + "\n")
+            f.write(json.dumps(trace_data, default=_json_default) + "\n")
 
     def trace_agent_error(self, context: Context, agent_id: str, error: Exception):
         os.makedirs(self.trace_path, exist_ok=True)
@@ -150,11 +178,13 @@ class LocalTracing(Tracing):
                 "parent_step_id": context.parent_step_id,
                 "agent_id": agent_id,
                 "error": str(error),
-                "messages": [message.model_dump() for message in context.messages],
+                "messages": [
+                    message.model_dump() for message in context.messages
+                ],
                 "store": _get_store_snapshot(context.store),
                 "thoughts": context.thoughts,
             }
-            f.write(json.dumps(trace_data) + "\n")
+            f.write(json.dumps(trace_data, default=_json_default) + "\n")
 
     def to_dict(self) -> dict:
         from .exceptions import RemoteExecutionNotSupportedError

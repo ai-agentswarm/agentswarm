@@ -2,6 +2,7 @@ from abc import abstractmethod
 import traceback
 import asyncio
 from typing import List, TypeVar
+import uuid
 
 from pydantic import BaseModel
 from .base_agent import BaseAgent
@@ -18,6 +19,7 @@ from ..datamodels import (
     VoidResponse,
     StrResponse,
     CompletionResponse,
+    ToolCall,
 )
 
 InputType = TypeVar("InputType", bound=BaseModel)
@@ -190,86 +192,93 @@ class ReActAgent(BaseAgent[InputType, OutputType]):
             if response.function_calls is None or len(response.function_calls) == 0:
                 return [Message(type="assistant", content=response.text)]
 
-            has_execution_tool = False
-            output = []
+            for fc in response.function_calls:
+                if not getattr(fc, "id", None):
+                    fc.id = uuid.uuid4().hex[
+                        :9
+                    ]  # 9 alnum: ok per Mistral, Gemini, Bedrock\
 
-            # Prepare tasks for parallel execution
-            tasks = []
+            assistant_turn = Message(
+                type="assistant",
+                content=response.text or "",
+                tool_calls=[
+                    ToolCall(
+                        id=fc.id,
+                        name=fc.name,
+                        arguments=fc.arguments,
+                        thought_signature=getattr(fc, "thought_signature", None),
+                    )
+                    for fc in response.function_calls
+                ],
+            )
 
-            for function_call in response.function_calls:
-                if function_call.name != self.get_thinking_agent().id():
-                    has_execution_tool = True
+            has_execution_tool = any(
+                fc.name != self.get_thinking_agent().id()
+                for fc in response.function_calls
+            )
 
-                # We wrap the execution in a task, capturing the necessary context
-                task = self.execute_and_handle_result(
-                    user_id, iter_context, function_call, context
-                )
-                tasks.append(task)
-
-            # Execute all tasks in parallel with concurrency limit
+            tasks = [
+                self.execute_and_handle_result(user_id, iter_context, fc, context)
+                for fc in response.function_calls
+            ]
             results = await self.gather_with_concurrency(
                 self.max_concurrent_agents, *tasks
             )
 
-            # Flatten results into output list
+            output = []
             for res in results:
                 if res:
                     if res.type == "completion":
-                        return [res]
-                    output.append(res)
+                        return [res]  # CompletionResponse terminates the loop
+                    output.append(res)  # tool-result messages
 
-            if not has_execution_tool and len(response.text) > 0:
-                output.append(Message(type="assistant", content=response.text))
-                return output
+            # (3) termination "with only thinking + final text": do NOT return internal tool-results
+            if not has_execution_tool and response.text:
+                return [Message(type="assistant", content=response.text)]
 
-            current_context = current_context + output
+            current_context = current_context + [assistant_turn] + output
             iteration += 1
 
         raise Exception("Max iterations reached")
 
     async def execute_and_handle_result(
-        self,
-        user_id: str,
-        iter_context: Context,
-        function_call: LLMFunction,
-        context: Context,
+        self, user_id, iter_context, function_call, context
     ) -> Message:
+        call_id = function_call.id
+        name = function_call.name
         try:
             result = await self.agent_execution(user_id, iter_context, function_call)
+            await self.on_agent_result(user_id, context, name, result)
 
-            # Call the lifecycle hook
-            await self.on_agent_result(user_id, context, function_call.name, result)
+            if isinstance(result, CompletionResponse):
+                return Message(type="completion", content=result.value)
 
             if isinstance(result, Message):
-                return result
+                payload = result.content
             elif isinstance(result, ThoughtResponse):
                 context.thoughts.append(result.thought)
-                return Message(type="assistant", content=f"Thought: {result.thought}")
+                payload = f"Thought: {result.thought}"
             elif isinstance(result, VoidResponse) or result is None:
-                return Message(
-                    type="user",
-                    content=f"Agent {function_call.name} executed successfully.",
-                )
+                payload = f"Agent {name} executed successfully."
             elif isinstance(result, KeyStoreResponse):
-                return Message(
-                    type="user",
-                    content=f"Agent {function_call.name} executed and stored {result.description} in the store with key {result.key}.",
+                payload = (
+                    f"Agent {name} executed and stored {result.description} "
+                    f"in the store with key {result.key}."
                 )
             elif isinstance(result, StrResponse):
-                return Message(
-                    type="user",
-                    content=f"Agent {function_call.name} executed and returned {result.value}.",
-                )
-            elif isinstance(result, CompletionResponse):
-                return Message(type="completion", content=result.value)
+                payload = f"Agent {name} executed and returned {result.value}."
             else:
-                return Message(
-                    type="user",
-                    content=f"Result of agent {function_call.name} execution: {result}",
-                )
+                payload = f"Result of agent {name} execution: {result}"
+
+            return Message(
+                type="tool", tool_call_id=call_id, name=name, content=payload
+            )
         except Exception as e:
             return Message(
-                type="user", content=f"Error executing agent {function_call.name}: {e}"
+                type="tool",
+                tool_call_id=call_id,
+                name=name,
+                content=f"Error executing agent {name}: {e}",
             )
 
 

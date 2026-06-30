@@ -74,11 +74,21 @@ class GeminiLLM(LLM):
                     if tc.thought_signature is not None:
                         part.thought_signature = tc.thought_signature
                     parts.append(part)
-                contents.append(types.Content(role="model", parts=parts))
+                # Gemini rejects any Content with an empty parts array
+                # ("must include at least one parts field"). An assistant turn
+                # with no text and no tool calls (e.g. an empty model response)
+                # carries no information, so skip it entirely.
+                if parts:
+                    contents.append(types.Content(role="model", parts=parts))
             else:  # user / execution
-                contents.append(
-                    types.Content(role="user", parts=[types.Part(text=message.content)])
-                )
+                # Skip messages with no usable text: an empty/None content would
+                # serialize to an empty part and trigger the same 400 error.
+                if message.content:
+                    contents.append(
+                        types.Content(
+                            role="user", parts=[types.Part(text=message.content)]
+                        )
+                    )
         flush_tools()
         if not sys_instruct:
             sys_instruct = None

@@ -187,6 +187,11 @@ class GeminiLLM(LLM):
                             if usg.total_token_count is not None
                             else 0
                         ),
+                        cached_prompt_token_count=(
+                            usg.cached_content_token_count
+                            if usg.cached_content_token_count is not None
+                            else 0
+                        ),
                     )
             return LLMOutput(
                 text="".join(text_parts),
@@ -219,6 +224,11 @@ class GeminiLLM(LLM):
             ),
             total_token_count=(
                 usg.total_token_count if usg.total_token_count is not None else 0
+            ),
+            cached_prompt_token_count=(
+                usg.cached_content_token_count
+                if usg.cached_content_token_count is not None
+                else 0
             ),
         )
 
